@@ -1,7 +1,8 @@
+%% presents words and when space bar is pressed to advance to next word plays a beep
+
 clear all; close all
 
-%filename = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\ASL_subset_noun_stimuli.csv";
-filename = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\pseudowords_VCV.csv";
+filename = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\ASL_subset_noun_stimuli.csv";
 
 data = readtable(filename, 'ReadVariableNames', true); % assumes header
 words = data.EntryID; % cell array of strings
