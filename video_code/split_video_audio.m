@@ -1,13 +1,13 @@
 clc; clear
 
 %% ================= USER INPUTS =================
-videoFile = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\pseudowords.MP4";   
-outputDir = "C:\Users\mspedden\Documents\pseudowords";
-filenamesCSV = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\pseudowords_VCV.csv";
+videoFile = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\pseudowords2.MP4";   
+outputDir = "C:\Users\mspedden\Videos\pseudosigns2";
+filenamesCSV = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\New_I_pseudowords.csv";
 
 saveVideo = true;   % set false if only trimming audio
-trimStart = 0.2;    % seconds to shave off start
-trimEnd   = 0.2;    % seconds to shave off end
+trimStart = 0.5;    % seconds to shave off start
+trimEnd   = 1.2;    % seconds to shave off end
 
 ffmpegPath = '"C:\ffmpeg-2026-01-19-git-43dbc011fa-full_build\bin\ffmpeg.exe"'; % full path to ffmpeg.exe
 %% ===============================================

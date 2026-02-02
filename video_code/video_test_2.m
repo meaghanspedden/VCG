@@ -2,8 +2,8 @@
 clear all
 close all
 %% --------- USER SETTINGS ---------
-folder = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\real_signs_split";   % Root folder to search
-csvPath = 'test11.csv';       
+folder = 'C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\pseudosigns_split\annotated';   % Root folder to search
+csvPath = 'test111.csv';       
 acceptKey = 'a';            % Key for accept
 rejectKey = 'r';            % Key for reject
 maxWidth = 1280;            % Set [] to disable scaling
@@ -47,7 +47,7 @@ fprintf('[INFO] Keys: Accept [%s] | Reject [%s]\n', upper(acceptKey), upper(reje
 fprintf('[INFO] Controls: SPACE pause/resume, N skip, Q quit\n');
 
 %% --------- 5. Loop through videos ---------
-for i = 76:length(toProcess)
+for i = 1:length(toProcess)
     filePath = toProcess{i};
     [~, fileName, ext] = fileparts(filePath);
     fileName = [fileName, ext];

@@ -2,7 +2,7 @@
 
 clear all; close all
 
-filename = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\ASL_subset_noun_stimuli.csv";
+filename = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\New_I_pseudowords.csv";
 
 data = readtable(filename, 'ReadVariableNames', true); % assumes header
 words = data.EntryID; % cell array of strings
@@ -27,7 +27,7 @@ for i = 1:length(words)
         'Units', 'normalized', ...
         'HorizontalAlignment', 'center', ...
         'VerticalAlignment', 'middle', ...
-        'FontSize', 163, ...
+        'FontSize', 150, ...
         'Color', 'black');
     
     axis off  % remove axes

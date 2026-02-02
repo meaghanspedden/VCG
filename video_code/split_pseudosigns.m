@@ -2,7 +2,7 @@
 clc; clear all
 % ================= USER INPUTS =================
 videoFile = 'C:\Users\mspedden\Videos\curled finger.MP4';   
-outputDir = 'C:\Users\mspedden\Videos\Split\curledfinger';              % folder to save individual clips
+outputDir = '"C:\Users\mspedden\Videos\pseudosigns2"';              % folder to save individual clips
 handshape = 'curledfinger';               % string used for clip naming
 %% ===============================================
 
