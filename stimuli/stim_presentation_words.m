@@ -2,7 +2,7 @@
 
 clear all; close all
 
-filename = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\New_I_pseudowords.csv";
+filename ="C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\ASL_subset_noun_stimuli_FINAL_1.csv"; %"C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\New_I_pseudowords.csv";
 
 data = readtable(filename, 'ReadVariableNames', true); % assumes header
 words = data.EntryID; % cell array of strings

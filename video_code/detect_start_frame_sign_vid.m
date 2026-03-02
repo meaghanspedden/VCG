@@ -1,110 +1,101 @@
-%% find frame for first upward movement of hand
-% can try without smoothing and adjusting 'baseline' std noise level
+clc; clear
 
-clc; clear 
-smoothop=0;
+%% Settings
+nPreFrames = 10;
+inputFolders = {
+    "C:\Users\mspedden\Videos\segments_real_signs\", ...
+    "C:\Users\mspedden\Videos\segments_pseudo_signs\"
+};
+outputFolders = {
+    "C:\Users\mspedden\Videos\segments_real_trimmed\", ...
+    "C:\Users\mspedden\Videos\segments_pseudo_trimmed\"
+};
+smoothop = 0;
 
-vidFile="C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\pseudosign_videos_new\split_fist\fist_02.mp4";
-
-v = VideoReader(vidFile);
-dt = 1/v.FrameRate;
-
-%% Step 2: Read all frames
-frames = {};
-while hasFrame(v)
-    frames{end+1} = rgb2gray(readFrame(v));
-end
-numFrames = numel(frames);
-
-%% Step 3: Select ROI for hand (manual)
-figure; imshow(frames{1});
-h = imrect;
-handROI = round(getPosition(h));  % [x y width height]
-close;
-
-%% Step 4: Compute vertical velocity in ROI using frame differencing
-verticalVel = zeros(numFrames,1);
-
-for i = 2:numFrames
-    currentROI = frames{i}(handROI(2):(handROI(2)+handROI(4)-1), ...
-                           handROI(1):(handROI(1)+handROI(3)-1));
-    prevROI    = frames{i-1}(handROI(2):(handROI(2)+handROI(4)-1), ...
-                           handROI(1):(handROI(1)+handROI(3)-1));
-    
-    diffFrame = double(currentROI) - double(prevROI);
-    
-    % Approximate vertical motion: sum along columns, mean over rows
-    verticalVel(i) = -mean(sum(diffFrame, 2));  % negative = upward motion
-end
-
-%% Step 5: Smooth velocity (test without this?
-if smoothop
-    verticalVelSmooth = movmean(verticalVel, 2);  % sliding window length 2 points
-else
-    verticalVelSmooth=verticalVel;
-end
-%% Step 6: Compute vertical acceleration
-verticalAcc = diff(verticalVelSmooth)/dt;
-
-%% Step 7: Plot velocity & acceleration vs frame
-figure;
-subplot(2,1,1);
-plot(1:numFrames, verticalVelSmooth, '-o');
-xlabel('Frame'); ylabel('Vertical velocity (pixels/frame)');
-title('Vertical velocity in ROI'); grid on;
-
-subplot(2,1,2);
-plot(2:numFrames, verticalAcc, '-o');
-xlabel('Frame'); ylabel('Vertical acceleration (pixels/frame^2)');
-title('Vertical acceleration in ROI'); grid on;
-
-%% Step 8: Detect first significant upward hand movement using velocity
-thresholdVel = mean(verticalVelSmooth) - 1.5*std(verticalVelSmooth);  % negative = upward
-firstVelIdx = find(verticalVelSmooth < thresholdVel, 1, 'first');
-
-if isempty(firstVelIdx)
-    error('No significant upward velocity detected.');
-end
-
-fprintf('First significant upward velocity at frame %d\n', firstVelIdx);
-
-% Mark on plots
-subplot(2,1,1); hold on;
-plot(firstVelIdx, verticalVelSmooth(firstVelIdx), 'ro', 'MarkerSize',10,'LineWidth',2);
-subplot(2,1,2); hold on;
-plot(firstVelIdx, verticalAcc(firstVelIdx), 'ro', 'MarkerSize',10,'LineWidth',2);  % optional: show acceleration too
-
-%% Step 9: Display frame with ROI overlay at detected velocity frame
-figure; imshow(frames{firstVelIdx});
-hold on;
-rectangle('Position', handROI, 'EdgeColor', 'r', 'LineWidth', 2);
-title(sprintf('Detected first upward velocity: frame %d', firstVelIdx));
-
-%% Step 10: Play short animation around first velocity-detected frame (slow)
-nPreFrames = 7;
-startFrame = max(firstVelIdx - nPreFrames, 1);
-endFrame = min(firstVelIdx + 5, numFrames); % show a few after
-
-slowFactor = 20; % slower playback
-
-figure;
-for f = startFrame:endFrame
-    imshow(frames{f});
-    hold on;
-    
-    % Draw ROI rectangle
-    rectangle('Position', handROI, 'EdgeColor', 'r', 'LineWidth', 2);
-    
-    % If this is the detected frame, plot a red dot at ROI center
-    if f == firstVelIdx
-        handCenterX = handROI(1) + handROI(3)/2;
-        handCenterY = handROI(2) + handROI(4)/2;
-        plot(handCenterX, handCenterY, 'ro', 'MarkerSize', 10, 'LineWidth', 2);
+%% Create output folders
+for f = 1:numel(outputFolders)
+    if ~exist(outputFolders{f}, 'dir')
+        mkdir(outputFolders{f});
     end
-    
-    % Display frame number
-    text(10, 30, sprintf('Frame: %d', f), 'Color', 'y', 'FontSize', 16, 'FontWeight', 'bold');
-    
-    hold off;
-    pause((1/v.FrameRate)*slowFactor);  % slow playback
 end
+
+%% Select ROI from first frame of first video
+allFiles = dir(fullfile(inputFolders{1}, '*.mp4'));
+firstVid = VideoReader(fullfile(inputFolders{1}, allFiles(1).name));
+firstFrame = rgb2gray(readFrame(firstVid));
+figure; imshow(firstFrame);
+title('Draw ROI around hand area, then double-click to confirm');
+h = imrect;
+handROI = round(getPosition(h));
+close;
+fprintf('ROI selected: x=%d y=%d w=%d h=%d\n', handROI(1), handROI(2), handROI(3), handROI(4));
+
+%% Batch process
+for folderIdx = 1:numel(inputFolders)
+    files = dir(fullfile(inputFolders{folderIdx}, '*.mp4'));
+    fprintf('\nProcessing folder: %s (%d files)\n', inputFolders{folderIdx}, numel(files));
+    
+    for fileIdx = 1:numel(files)
+        vidFile = fullfile(inputFolders{folderIdx}, files(fileIdx).name);
+        outFile = fullfile(outputFolders{folderIdx}, files(fileIdx).name);
+        fprintf('  Processing %s...', files(fileIdx).name);
+        
+        try
+            v = VideoReader(vidFile);
+            frameRate = v.FrameRate;
+            
+            % Read all frames
+            frames = {};
+            while hasFrame(v)
+                frames{end+1} = rgb2gray(readFrame(v));
+            end
+            numFrames = numel(frames);
+            
+            % Compute vertical velocity in ROI
+            verticalVel = zeros(numFrames, 1);
+            for i = 2:numFrames
+                currentROI = frames{i}(handROI(2):(handROI(2)+handROI(4)-1), ...
+                                       handROI(1):(handROI(1)+handROI(3)-1));
+                prevROI    = frames{i-1}(handROI(2):(handROI(2)+handROI(4)-1), ...
+                                         handROI(1):(handROI(1)+handROI(3)-1));
+                diffFrame = double(currentROI) - double(prevROI);
+                verticalVel(i) = -mean(sum(diffFrame, 2));
+            end
+            
+            % Smooth if needed
+            if smoothop
+                verticalVelSmooth = movmean(verticalVel, 2);
+            else
+                verticalVelSmooth = verticalVel;
+            end
+            
+            % Detect first significant upward movement
+            thresholdVel = mean(verticalVelSmooth) - 1.5*std(verticalVelSmooth);
+            firstVelIdx = find(verticalVelSmooth < thresholdVel, 1, 'first');
+            
+            if isempty(firstVelIdx)
+                fprintf(' WARNING: No onset detected, copying full video\n');
+                copyfile(vidFile, outFile);
+                continue;
+            end
+            
+            % Calculate trim start time
+            startFrame = max(firstVelIdx - nPreFrames, 1);
+            startTime = (startFrame - 1) / frameRate;
+            
+            fprintf(' onset frame %d, trimming from frame %d (t=%.2fs)\n', ...
+                firstVelIdx, startFrame, startTime);
+            
+            % Use ffmpeg to trim and save
+            ffmpegPath = 'C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe';
+            cmd = sprintf('"%s" -ss %.4f -i "%s" -c:v libx264 -preset fast -crf 23 -y "%s"', ...
+                ffmpegPath, startTime, vidFile, outFile);
+            system(cmd);
+            
+        catch ME
+            fprintf(' ERROR: %s\n', ME.message);
+        end
+    end
+end
+
+fprintf('\nDone!\n');

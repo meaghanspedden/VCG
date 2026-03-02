@@ -1,7 +1,7 @@
 clear; close all
 
 %% --------- USER SETTINGS ---------
-folder = 'C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\pseudosign_videos_new\agreed_pseudosigns';
+folder = 'C:\Users\mspedden\Videos\segments_pseudo_signs';
 csvPath = 'ratings_MES.csv';
 maxWidth = 1280;        % [] disables scaling
 speedFactor = 2;        % 2 = 2x faster playback

@@ -11,7 +11,7 @@ video_files = sorted(video_folder.glob("*.mp4"))
 
 # Beep properties
 fs = 44100
-t = np.arange(0, 0.5, 1/fs)
+t = np.arange(0, 0.25, 1/fs)
 beep_sound = np.sin(2*np.pi*700*t)  # 700 Hz beep for 0.25 s
 
 print(f"Found {len(video_files)} videos.")

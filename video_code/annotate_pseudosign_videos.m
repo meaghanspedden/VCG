@@ -26,14 +26,21 @@ for i = 1:height(data)
         position = [10 10]; % [x y] in pixels
         boxColor = 'yellow';
         textColor = 'black';
-        frameAnnotated = insertText(frame, position, annotation, ...
-            'FontSize', 32, 'BoxColor', boxColor, 'TextColor', textColor, ...
-            'BoxOpacity', 0.6);
+% Insert location on line 1
+frameAnnotated = insertText(frame, [10 10], locationText, ...
+    'FontSize', 65, 'BoxColor', boxColor, 'TextColor', textColor, ...
+    'BoxOpacity', 0.6);
+
+% Insert movement on line 2 (offset y by ~70px to clear first line)
+frameAnnotated = insertText(frameAnnotated, [10 150], movementText, ...
+    'FontSize', 65, 'BoxColor', boxColor, 'TextColor', textColor, ...
+    'BoxOpacity', 0.6);
         
+cd('C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\pseudosigns_split\annotated')
         % Write annotated frame
         writeVideo(outputVideo, frameAnnotated);
     end
     
     close(outputVideo);
-    fprintf('Annotated video saved: %s_annotated%s\n', name, ext);
+    fprintf('Annotated video saved: %s_annotated1%s\n', name, ext);
 end
