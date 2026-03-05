@@ -1,3 +1,6 @@
+
+%% For each *.mp4, looks for same-basename *.wav, then muxes them into *_final.mp4.
+
 %% ================= USER INPUTS =================
 ffmpegPath = '"C:\ffmpeg-2026-01-19-git-43dbc011fa-full_build\bin\ffmpeg.exe"'; % full path to ffmpeg.exe
 folder = "C:\Users\mspedden\Documents\pseudowords";  % folder with your MP4 and WAV files

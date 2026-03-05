@@ -21,12 +21,12 @@ realBgColor = [10, 63, 26] / 255;      % Dark green
 pseudoBgColor = [0, 26, 102] / 255;    % Deep blue
 
 % Practice trials
-nPracticeTrials = 6;  % Total practice trials (will split between real/pseudo)
+nPracticeTrials = 40;  % Total practice trials (will split between real/pseudo)
 
 % PRACTICE timing (slower, self-paced)
-practice_preVideoDuration = 2.0;    % 2s background before video
-practice_questionDuration = 1.0;    % 2s question mark
-practice_responseDuration = 3.0;    % 4s response time
+practice_preVideoDuration = 1.0;    % 2s background before video
+practice_questionDuration = 1.0;    % question mark
+practice_responseDuration = 1.0;    % response time
 
 % MAIN experiment timing (faster)
 main_preVideoDuration = 0.5;        % 0.5s background before video
@@ -185,7 +185,7 @@ try
     fprintf('Screen refresh rate: %.2f Hz\n', fps);
     
     % Hide cursor
-    HideCursor(window);
+   % HideCursor(window);
     
     % Keyboard setup
     KbName('UnifyKeyNames');

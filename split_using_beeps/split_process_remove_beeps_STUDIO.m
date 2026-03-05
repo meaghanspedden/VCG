@@ -1,6 +1,6 @@
 function split_process_remove_beeps_v2()
 % SPLIT_PROCESS_REMOVE_BEEPS
-% One MATLAB-driven pipeline:
+%% KIND OF OPTIMISED FOR GREEN SCREEN AT RECORDING STUDIO...
 % 1) Detect 700 Hz beeps (between words) from raw audio (robust: level + tonal)
 % 2) Create "keep" segments that EXCLUDE the beep intervals
 % 3) For each segment: crop + blue->green key + audio cleanup -> MP4
@@ -11,18 +11,18 @@ function split_process_remove_beeps_v2()
 %% ===== USER SETTINGS =====
 ffmpeg = '"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"';
 
-inVideo = "C:\Users\mspedden\Videos\Institute of Cognitive Neuroscience\pseudo_signs.mov";
-outDir  = "C:\Users\mspedden\Videos\test_segments_pseudo_signs\";
+inVideo = "C:\Users\mspedden\OneDrive - University College London\real_signs_all_3.mp4";
+outDir  = "C:\Users\mspedden\Videos\test_segments_real_signs_grey\";
 
 % Crop (MUST be even numbers)
-doCrop = false;   % set to true once you know your crop values
+doCrop = true;   % set to true once you know your crop values
 cropX = 452; cropY = 2; cropW = 1070; cropH = 988;
 
 % Key / background
-bgColor  = "0x0A3F1A"; %GREEN%"0x001A66"; %blue
+bgColor  = "0x646464";%"0x0A3F1A"; %GREEN%"0x001A66"; %blue
 %"0x0A3F1A"; GREEN
 fpsExpr  = "3005/100";     % 30.05 fps
-keyColor = "0x00FF00";      % green
+keyColor = "0x001A66";%"0x00FF00";      % green FOR NEW STUDIO
 sim      = 0.26;
 blend    = 0.10;
 blur     = 0.8;
