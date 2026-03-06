@@ -1,0 +1,41 @@
+Here's a summary of everything we covered:
+Problems fixed:
+
+Audio sample rate crash — the lab PC's audio driver doesn't support 44100 Hz. Fixed by trying 48000 Hz first (Windows default), falling back to 44100 then 22050 if needed.
+Movie handle leak — PTB was warning "1 movie still open" because the nested safeCloseMovie() function couldn't reliably see the outer moviePtr variable. Fixed by replacing it with explicit inline close calls in three places: immediately after playback ends, at the start of each trial as a safety check, and in the catch/error block.
+Bg → first frame ~99 ms over target — the movie was being opened after the background period, so GStreamer's ~70 ms startup cost was added on top of the 750 ms wait. Fixed by opening the movie during the background period using preloadSecs=1 (note: preloadSecs=-1 is not supported in PTB 3.0.16).
+Question mark ~25 ms delayed after video end — caused by breaking out of the playback loop and then flipping separately. Fixed by drawing and flipping the question mark inside the loop the moment GetMovieImage returns ≤0.
+
+
+Screen setup findings:
+
+PTB screen 0 = combined spanning desktop (3840×1080) — never use this
+PTB screen 1 = projector (1920×1200) — use this for experiments
+PTB screen 2 = monitor (1920×1080) — your working screen
+
+Windows Display Settings numbers them in the opposite order to PTB, which caused the confusion.
+The projector runs at 1920×1200 natively despite Windows Display Settings showing 1080p — PTB detected the true resolution correctly.
+
+VBL sync error on projector:
+PTB throws a sync failure on screen 1 because the Intel UHD 630 integrated graphics can't provide reliable beamposition data to a non-primary extended display. This is a known hardware limitation. The fix is Screen('Preference', 'SkipSyncTests', 1). Timing tests show this has no meaningful impact in practice — jitter is under 7 ms across trials.
+
+Final timing results on projector (screen 1):
+
+Bg → first frame: ~771 ms mean (21 ms over 750 ms target, consistent across trials — one frame, unavoidable at 60 Hz)
+Trial-to-trial jitter: ~7 ms — well within acceptable limits for M400
+Question mark delay: 0 ms
+Response duration: ~1006 ms (6 ms over target, one frame)
+Parallel port triggers: firing correctly
+Audio locked to first video frame
+
+
+Changes to make in your actual experiment file:
+
+Add the audio fallback loop (try 48000 → 44100 → 22050) replacing the single PsychPortAudio('Open') call
+Change SkipSyncTests from 0 to 1
+Set screen number to 1 (projector)
+Move Screen('OpenMovie') to inside the background period with preloadSecs=1, then call waitWithEscapeUntil for the remainder
+In the playback loop, handle tex <= 0 by drawing and flipping the question mark immediately rather than breaking and flipping afterwards
+Replace any safeCloseMovie() calls with explicit inline close blocks in all three locations mentioned above
+
+For the M400 specifically — the ~21 ms fixed offset and ~7 ms jitter are both well within acceptable limits. The component spans ~200 ms and peaks at 350–450 ms, so frame-level timing precision is not a limiting factor here.

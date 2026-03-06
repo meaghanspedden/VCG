@@ -3,7 +3,7 @@
 
 ffmpegPath = '"C:\ffmpeg-2026-01-19-git-43dbc011fa-full_build\bin\ffmpeg.exe"';
 
-inFolder  = 'C:\Users\mspedden\Videos\segments_real_words';
+inFolder  = 'C:\Users\mspedden\Videos\pseudo_words_segements';
 outFolder = inFolder; % put .wav next to .mp4
 
 mp4s = dir(fullfile(inFolder, '*.mp4'));

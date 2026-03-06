@@ -1,6 +1,6 @@
 function split_pseudowords_export_repeat_only_v2()
 % V2: lower beep threshold, diagnostic plot shows score + threshold line
-% FOR DCAL
+
 %% ===== USER SETTINGS =====
 ffmpeg = '"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"';
 
@@ -18,8 +18,8 @@ vidH = 1052;
 bgColor  = "0x001A66";
 fpsExpr  = "30.05";
 keyColor = "0x143680";
-sim      = 0.05;   % lowered from 0.26 to fix blue face
-blend    = 0.1;   % lowered for more selective edge
+sim      = 0.10;   % lowered from 0.26 to fix blue face
+blend    = 0.05;   % lowered for more selective edge
 blur     = 1.2;    % slight blur to soften edges
 erosionPx = 1;
 
@@ -150,6 +150,22 @@ for k = 1:numel(trialStarts)
     end
 
     fprintf("Trial %03d -> repeat_%03d (%.2fs to %.2fs)\n", k, outCount, ss, to);
+
+    % Extract and process WAV from the exported MP4 (same trim, one pass)
+    wavOut  = fullfile(outDir, sprintf("repeat_%03d.wav", outCount));
+    audioAf = ['highpass=f=80,' ...
+               'afftdn=nf=-24,' ...
+               'equalizer=f=50:t=q:w=0.7:g=-8,' ...
+               'equalizer=f=100:t=q:w=0.7:g=-5,' ...
+               'equalizer=f=200:t=q:w=1.0:g=3,' ...
+               'volume=3dB'];
+    cmdWav = sprintf('%s -y -i "%s" -vn -acodec pcm_s16le -af "%s" -ar 44100 -ac 1 "%s"', ...
+        ffmpeg, outFile, wavOut, audioAf);
+    if system(cmdWav) == 0
+        fprintf("  -> WAV: repeat_%03d.wav\n", outCount);
+    else
+        fprintf("  -> WARNING: WAV extraction failed for repeat_%03d\n", outCount);
+    end
 end
 
 fprintf("Done. Repeat-only segments written: %d\nOutDir: %s\n", outCount, outDir);
