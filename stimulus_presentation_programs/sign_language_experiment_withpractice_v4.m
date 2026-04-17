@@ -1,4 +1,4 @@
-function sign_language_experiment_withpractice_v3()
+function sign_language_experiment_withpractice_v4()
 % SIGN_LANGUAGE_EXPERIMENT_WITHPRACTICE_V3
 % PsychToolbox sign language video experiment for DEAF participants.
 %
@@ -33,7 +33,7 @@ function sign_language_experiment_withpractice_v3()
 % Set labMode = true when running in the MEG lab.
 % Set labMode = false when testing at your desk.
 labMode = false;
-
+%screenNumber=0; %laptop only
 screenNumber  = 1 * labMode + 2 * ~labMode;   % 1 = projector, 2 = dev monitor
 skipSyncTests = 2; %* labMode + 0 * ~labMode;   % 1 = lab (Intel GPU), 0 = strict
 
@@ -44,7 +44,7 @@ skipSyncTests = 2; %* labMode + 0 * ~labMode;   % 1 = lab (Intel GPU), 0 = stric
 realVideoFolder      = 'C:\Users\mspedden\Videos\clipped_signs';
 realPracticeFolder   = 'C:\Users\mspedden\Videos\clipped_signs\clipped_practice';
 pseudoVideoFolder    = 'C:\Users\mspedden\Videos\clipped_pseudo_signs';
-pseudoPracticeFolder = 'C:\Users\mspedden\Videos\clipped_pseudo_signs\practice';
+pseudoPracticeFolder = 'C:\Users\mspedden\Videos\clipped_pseudo_signs\clipped_practice_pseudo';
 dataFolder           = 'C:\Users\mspedden\Documents\experiment_data';
 
 % Background colours (normalised 0-1 for PTB)
@@ -58,13 +58,13 @@ nBlockedPracticePerCond = 1;
 nMixedPracticePerCond   = nPracticePerCond - nBlockedPracticePerCond;
 
 % PRACTICE timing (slower)
-practice_preVideoDuration = 1.0;
-practice_questionDuration = 2.0;
+practice_preVideoDuration = 1;
+practice_questionDuration = 1.0;
 practice_responseDuration = 2.0;
 
 % MAIN timing
-main_preVideoDuration = 0.75;
-main_questionDuration = 2.0;
+main_preVideoDuration = 1;
+main_questionDuration = 1.0;
 main_responseDuration = 1.0;
 
 % Text settings
@@ -85,31 +85,50 @@ TRIG_VIDEO    = 2;   % first video frame
 TRIG_QUESTION = 4;   % question mark onset
 
 % Instructions
-realInstructionText = [ ...
-    'You will see a video with a GREEN background.\n\n' ...
-    'The video shows a single sign.\n' ...
-    'Watch the video carefully.\n' ...
-    'WAIT for the question mark (?).\n' ...
-    'Then produce ONE related sign.\n' ...
-    'For example, if the sign is DOG, you might sign CAT or ANIMAL.\n\n' ...
-    'Just sign the first thing you think of.\n' ...
+% NOTE: These instructions are intentionally detailed for piloting.
+% In the final MEG session, participants will be trained outside the MSR
+% in BSL by the experimenter — these screens will serve as a brief reminder
+% only. Reduce text here when moving to real data collection.
+realInstructionText1 = [ ...
+    'When the background is green, you will see a video of a sign.\n\n' ...
+    'Press SPACE to continue.' ];
+
+realInstructionText2 = [ ...
+    'When ? appears:\n\n' ...
+    'Sign just one related sign.\n\n' ...
+    'e.g. DOG -->  CAT or ANIMAL\n\n' ...
+    'Press SPACE to continue.' ];
+
+realInstructionText3 = [ ...
+    'Sign the FIRST thing that comes to mind.\n\n' ...
+    'Don''t think too hard.\n\n' ...
+    'Sign only — do not mouth the word.\n\n' ...
+    'If you don''t know a sign, don''t respond,\n' ...
+    'the next trial will begin automatically.\n\n' ...
     'Press SPACE to start.' ];
 
-pseudoInstructionText = [ ...
-    'Now you will see a video with a BLUE background.\n\n' ...
-    'The video shows a sign-like movement that does not mean anything.\n' ...
-    'Watch the video carefully.\n' ...
-    'WAIT for the question mark (?).\n' ...
-    'Then copy the movement.\n\n' ...
+pseudoInstructionText1 = [ ...
+    'When the background is blue, you will see a video of a movement that does not mean anything.\n\n' ...
+    'Press SPACE to continue.' ];
+
+pseudoInstructionText2 = [ ...
+    'When ? appears:\n\n' ...
+    'Mirror the movement — copy exactly what you see.\n\n' ...
+    'If you miss the movement, don''t respond,\n' ...
+    'the next trial will begin automatically.\n\n' ...
     'Press SPACE to start.' ];
 
-mixedPracticeText = [ ...
+mixedPracticeText_top = [ ...
     'Mixed practice\n\n' ...
     'The trials will now appear in random order.\n' ...
-    'They will run continuously without stopping between trials.\n\n' ...
-    'GREEN background: produce a related sign.\n' ...
-    'BLUE background: copy the movement.\n\n' ...
-    'WAIT for the question mark (?) before responding.\n\n' ...
+    'They will run continuously without stopping between trials.\n\n' ];
+
+mixedPracticeText_green = 'GREEN background: produce a related sign.';
+mixedPracticeText_blue  = 'BLUE background: copy the movement.';
+
+mixedPracticeText_bottom = [ ...
+    '\n\nDon''t rush - wait until the video is finished.\n\n' ...
+    'A + will appear between trials — wait for the background to change.\n\n' ...
     'Press SPACE to continue.' ];
 
 mainStartText = [ ...
@@ -297,9 +316,11 @@ try
     
     PsychDefaultSetup(2);
 
-    Screen('Preference', 'SkipSyncTests',     skipSyncTests);
-    Screen('Preference', 'VisualDebugLevel',  1);
-    Screen('Preference', 'SuppressAllWarnings', 1);
+    Screen('Preference', 'SkipSyncTests',        skipSyncTests);
+    Screen('Preference', 'VisualDebugLevel',     1);
+    Screen('Preference', 'SuppressAllWarnings',  1);
+    Screen('Preference', 'TextEncodingLocale',   'UTF-8');
+    Screen('Preference', 'TextRenderer',         1);
 
     [window, windowRect] = Screen('OpenWindow', screenNumber, neutralGray); %#ok<ASGLU>
     Screen('TextFont',  window, 'Arial');
@@ -356,17 +377,40 @@ try
         % Instruction screens
         if trials(trial).isPractice
             if strcmp(trials(trial).practiceStage, 'REAL_BLOCK') && trial == 1
-                showInstruction(realBgColor, realInstructionText);
+                showInstruction(realBgColor, realInstructionText1);
+                showInstruction(realBgColor, realInstructionText2);
+                showInstruction(realBgColor, realInstructionText3);
             end
             if hasPseudo && strcmp(trials(trial).practiceStage, 'PSEUDO_BLOCK') && trial > 1 ...
                     && strcmp(trials(trial-1).practiceStage, 'REAL_BLOCK')
-                showInstruction(pseudoBgColor, pseudoInstructionText);
+                showInstruction(pseudoBgColor, pseudoInstructionText1);
+                showInstruction(pseudoBgColor, pseudoInstructionText2);
             end
             if hasPseudo && strcmp(trials(trial).practiceStage, 'MIXED') && trial > 1 ...
                     && strcmp(trials(trial-1).practiceStage, 'PSEUDO_BLOCK')
                 Screen('FillRect', window, neutralGray);
                 Screen('TextSize', window, instructionTextSize);
-                DrawFormattedText(window, mixedPracticeText, 'center', 'center', [255 255 255], ...
+                lineH = instructionTextSize * instructionVSpacing;
+                screenH = windowRect(4);
+                % Count lines in each section to compute total block height:
+                %   _top:    'Mixed practice'(1) + blank(1) + 2 text lines(2) + blank(1) = 5
+                %   _green:  1 line
+                %   _blue:   1 line
+                %   _bottom: blank(1) + blank(1) + 1 text line(1) + blank(1) + 1 text line(1) = 5
+                % Total = 13 lines; start half that above screen centre
+                nLines   = 13;
+                startY   = (screenH - nLines * lineH) / 2;
+                % Draw top section (white)
+                [~, topY] = DrawFormattedText(window, mixedPracticeText_top, 'center', startY, [255 255 255], ...
+                    instructionWrapAt, [], [], instructionVSpacing);
+                % Draw GREEN line in dark green
+                [~, greenY] = DrawFormattedText(window, mixedPracticeText_green, 'center', topY + lineH, [0 140 50], ...
+                    instructionWrapAt, [], [], instructionVSpacing);
+                % Draw BLUE line in dark blue
+                [~, blueY] = DrawFormattedText(window, mixedPracticeText_blue, 'center', greenY + lineH, [30 80 200], ...
+                    instructionWrapAt, [], [], instructionVSpacing);
+                % Draw bottom section (white)
+                DrawFormattedText(window, mixedPracticeText_bottom, 'center', blueY + lineH, [255 255 255], ...
                     instructionWrapAt, [], [], instructionVSpacing);
                 Screen('Flip', window);
                 waitForSpaceOrEscape();
@@ -382,6 +426,20 @@ try
             Screen('TextSize', window, instructionTextSize);
             DrawFormattedText(window, mainStartText, 'center', 'center', [255 255 255], ...
                 instructionWrapAt, [], [], instructionVSpacing);
+            Screen('Flip', window);
+            waitForSpaceOrEscape();
+            WaitSecs(0.2);
+            Screen('TextSize', window, questionTextSize);
+        end
+
+        % Mid-experiment break
+        nMainTrials  = nTrials - nActualPractice;
+        mainTrial    = trial - nActualPractice;
+        if ~trials(trial).isPractice && mainTrial == round(nMainTrials / 2)
+            Screen('FillRect', window, neutralGray);
+            Screen('TextSize', window, instructionTextSize);
+            DrawFormattedText(window, 'Halfway there — take a break!\n\nPress SPACE when you are ready to continue.', ...
+                'center', 'center', [255 255 255], instructionWrapAt, [], [], instructionVSpacing);
             Screen('Flip', window);
             waitForSpaceOrEscape();
             WaitSecs(0.2);

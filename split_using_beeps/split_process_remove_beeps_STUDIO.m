@@ -1,4 +1,4 @@
-function split_process_remove_beeps_v2()
+function split_process_remove_beeps_STUDIO()
 % SPLIT_PROCESS_REMOVE_BEEPS
 %% KIND OF OPTIMISED FOR GREEN SCREEN AT RECORDING STUDIO...
 % 1) Detect 700 Hz beeps (between words) from raw audio (robust: level + tonal)
@@ -11,18 +11,20 @@ function split_process_remove_beeps_v2()
 %% ===== USER SETTINGS =====
 ffmpeg = '"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"';
 
-inVideo = "C:\Users\mspedden\OneDrive - University College London\real_signs_all_3.mp4";
-outDir  = "C:\Users\mspedden\Videos\test_segments_real_signs_grey\";
+inVideo = "C:\Users\mspedden\Videos\Institute of Cognitive Neuroscience\real_signs_all.mov";
+outDir  = "C:\Users\mspedden\Videos\test_segments_real_signs_dark_periwinkle";
 
 % Crop (MUST be even numbers)
-doCrop = true;   % set to true once you know your crop values
+doCrop = false;   % set to true once you know your crop values
 cropX = 452; cropY = 2; cropW = 1070; cropH = 988;
 
 % Key / background
-bgColor  = "0x646464";%"0x0A3F1A"; %GREEN%"0x001A66"; %blue
-%"0x0A3F1A"; GREEN
-fpsExpr  = "3005/100";     % 30.05 fps
-keyColor = "0x001A66";%"0x00FF00";      % green FOR NEW STUDIO
+%bgColor  = "0xCC7752"; %orange/pink
+
+bgColor  = " 0xAABEDC"; %periwinkle
+
+fpsExpr  = "25";     
+keyColor = "0x00FF00";      % green screen FOR NEW STUDIO
 sim      = 0.26;
 blend    = 0.10;
 blur     = 0.8;

@@ -25,6 +25,8 @@ import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
+from detection import detect_cuts, WRIST_IDX
+
 # ── paths ─────────────────────────────────────────────────────────────────────
 REAL_DIR        = r"C:\Users\mspedden\Videos\segments_real_signs"
 PSEUDO_DIR      = r"C:\Users\mspedden\Videos\segments_pseudo_signs"
@@ -35,35 +37,11 @@ PRACTICE_OUT_DIR= r"C:\Users\mspedden\Videos\clipped_practice"
 MODEL_PATH      = r"C:\Users\mspedden\Documents\VCG\code\models\hand_landmarker.task"
 FFMPEG          = r"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
 
-
-# ── detection params (best from eval) ─────────────────────────────────────────
-DERIV_THRESH_START = 0.018
-DROP_FRAC_END      = 0.15
-SMOOTH_WIN         = 13   # must be odd; used for both height and derivative
-WRIST_IDX          = 0    # MediaPipe wrist landmark index
-
 # ── padding (seconds added before start and after end) ────────────────────────
 PAD_SECONDS = 0.3
 
 EXTS = (".mp4", ".mov", ".m4v", ".avi")
 # ──────────────────────────────────────────────────────────────────────────────
-
-
-def smooth(x, win=13):
-    win = max(3, int(win) | 1)
-    if len(x) < win:
-        return x.copy()
-    return np.convolve(x, np.ones(win) / win, mode="same")
-
-
-def interpolate_nans(arr):
-    valid = np.isfinite(arr)
-    if valid.sum() < 2:
-        return arr.copy(), valid
-    idx = np.arange(len(arr))
-    out = arr.copy()
-    out[~valid] = np.interp(idx[~valid], idx[valid], arr[valid])
-    return out, valid
 
 
 def extract_wrist_y(video_path, landmarker, fps):
@@ -91,40 +69,6 @@ def extract_wrist_y(video_path, landmarker, fps):
 
     cap.release()
     return np.asarray(wrist_y, dtype=np.float32)
-
-
-def detect_cuts(wrist_y, fps):
-    y_interp, valid = interpolate_nans(wrist_y)
-    if valid.mean() < 0.15:
-        return None, None, "too_few_detections"
-
-    y_inv = 1.0 - y_interp
-    y_sm  = smooth(y_inv, win=SMOOTH_WIN)
-
-    sig_range = float(y_sm.max() - y_sm.min())
-    if sig_range < 1e-4:
-        return None, None, "no_height_variation"
-
-    dy    = np.gradient(y_sm) / sig_range
-    dy_sm = smooth(dy, win=7)
-
-    peak_idx = int(np.argmax(y_sm))
-
-    start_frame = 0
-    for i in range(peak_idx, 0, -1):
-        if dy_sm[i] > DERIV_THRESH_START:
-            start_frame = i
-            break
-
-    peak_val    = float(y_sm[peak_idx])
-    drop_thresh = peak_val - DROP_FRAC_END * sig_range
-    end_frame   = len(y_sm) - 1
-    for i in range(peak_idx, len(y_sm)):
-        if y_sm[i] < drop_thresh:
-            end_frame = i
-            break
-
-    return int(start_frame), int(end_frame), "ok"
 
 
 def write_h264(frames, fps, dst_path):
@@ -168,7 +112,6 @@ def clip_video(src_path, dst_path, start_frame, end_frame, fps, total_frames):
     freeze_n = max(1, int(round(PAD_SECONDS * fps)))
 
     cap = cv2.VideoCapture(src_path)
-    # seek safely to avoid keyframe blur
     seek_to = max(0, s - 10)
     cap.set(cv2.CAP_PROP_POS_FRAMES, seek_to)
     for _ in range(s - seek_to):
@@ -231,7 +174,6 @@ def main():
     ap.add_argument("--force",    action="store_true", help="re-clip even if output exists")
     args = ap.parse_args()
 
-    # which folders to process
     if args.practice:
         jobs = [(PRACTICE_DIR, PRACTICE_OUT_DIR)]
     elif args.real:
@@ -248,7 +190,6 @@ def main():
         print(f"ERROR: model not found: {MODEL_PATH}")
         sys.exit(1)
 
-    # collect all videos across jobs
     all_videos = []
     for src_dir, out_dir in jobs:
         for p in collect_videos([src_dir]):
@@ -260,7 +201,6 @@ def main():
 
     print(f"Found {len(all_videos)} video(s)\n")
 
-    # filter already done unless --force
     if not args.force:
         pending = []
         for p, out_dir in all_videos:
@@ -277,7 +217,6 @@ def main():
 
     print(f"\nClipping {len(all_videos)} video(s)...\n")
 
-    # one log per output dir
     logs = {}
     for _, out_dir in jobs:
         log_path = os.path.join(out_dir, "clip_log.csv")
@@ -326,7 +265,7 @@ def main():
 
             print(f"  det={det_start}–{det_end}  "
                   f"clip={clip_s}–{clip_e}  "
-                  f"({duration:.2f}s)  →  {name}")
+                  f"({duration:.2f}s)  →  {name}  [{notes}]")
 
             log_writer.writerow({
                 "video": name, "sign_type": sign_type, "fps": round(fps, 2),

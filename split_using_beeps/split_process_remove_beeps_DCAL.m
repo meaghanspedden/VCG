@@ -1,4 +1,4 @@
-function split_process_remove_beeps()
+function split_process_remove_beeps_DCAL()
 % SPLIT_PROCESS_REMOVE_BEEPS
 % OPTIMISED FOR OLD DCAL VIDEOS---------------
 %-------------------------------------------
