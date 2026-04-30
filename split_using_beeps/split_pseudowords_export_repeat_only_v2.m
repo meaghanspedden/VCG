@@ -4,33 +4,35 @@ function split_pseudowords_export_repeat_only_v2()
 %% ===== USER SETTINGS =====
 ffmpeg = '"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"';
 
-inVideo = "C:\Users\mspedden\OneDrive - University College London\pseudo_words_2.mp4";
-outDir  = "C:\Users\mspedden\Videos\pseudo_words_segements\";
+inVideo = "C:\Users\mspedden\Videos\Day 1 False Words.mp4";
+outDir  = "C:\Users\mspedden\Videos\false_words_periwinkle_model1";
 
 % Crop (MUST be even numbers)
-doCrop = true;
+doCrop = false;
 cropX = 452; cropY = 2; cropW = 1070; cropH = 988;
 
 vidW = 1872;
 vidH = 1052;
 
 % Key / background
-bgColor  = "0x001A66";
-fpsExpr  = "30.05";
-keyColor = "0x143680";
-sim      = 0.10;   % lowered from 0.26 to fix blue face
-blend    = 0.05;   % lowered for more selective edge
-blur     = 1.2;    % slight blur to soften edges
+bgColor  = " 0xAABEDC"; %periwinkle
+fpsExpr  = "25"; 
+keyColor = "0x00FF00";  %green screen
+sim      = 0.26;   % lowered from 0.26 to fix blue face
+blend    = 0.1;   % lowered for more selective edge
+blur     = 0.8;    % slight blur to soften edges
 erosionPx = 1;
 
+vidW = 1872;
+vidH = 1052;
 % Beep definition
 f0 = 700;
 guardPad = 0.03;
 
 % Beep detector — peak finding on score signal
-detectorParams.tonalRatioMin  = 3;
-detectorParams.minPeakProminence = 5;   % min prominence to count as a beep peak
-detectorParams.minPeakDistance_s = 3.0; % minimum seconds between beeps
+detectorParams.tonalRatioMin  = 8;
+detectorParams.minPeakProminence = 8;   % min prominence to count as a beep peak
+detectorParams.minPeakDistance_s = 5; % minimum seconds between beeps
 
 % Repeat detection (VAD within each trial)
 vadParams.bandpassHz   = [80 4000];
@@ -222,6 +224,7 @@ tScore = ((0:nFrames-1)*hop + frameLen/2) / fs;
 
 % threshold for plot only — not used for detection
 thrLevel = median(scoreS) + 3 * mad(scoreS, 1);
+scoreS(scoreS < 8) = 0;
 
 % Find peaks — each peak = one beep
 minDistFrames = round(P.minPeakDistance_s / (hop/fs));
@@ -233,23 +236,15 @@ if isempty(peakLocs)
     beepStarts = []; beepEnds = []; return;
 end
 
-% Estimate beep start/end as the region around each peak where score > 10% of peak
+% Use fixed beep duration (0.25s) centred on each peak
+beepHalfWidth = 0.125;  % half of 0.25s
+
 beepStarts = zeros(numel(peakLocs),1);
 beepEnds   = zeros(numel(peakLocs),1);
 
 for i = 1:numel(peakLocs)
-    pk  = peakLocs(i);
-    thr = max(scoreS(pk) * 0.10, 0.5);
-
-    % walk left
-    s = pk;
-    while s > 1 && scoreS(s-1) > thr, s = s-1; end
-    % walk right
-    e = pk;
-    while e < nFrames && scoreS(e+1) > thr, e = e+1; end
-
-    beepStarts(i) = tScore(s);
-    beepEnds(i)   = tScore(e);
+    beepStarts(i) = max(0,            tScore(peakLocs(i)) - beepHalfWidth);
+    beepEnds(i)   = min(tScore(end),  tScore(peakLocs(i)) + beepHalfWidth);
 end
 
 fprintf('Peak-finder: %d beeps found\n', numel(peakLocs));

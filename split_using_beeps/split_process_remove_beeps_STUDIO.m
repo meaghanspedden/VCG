@@ -1,27 +1,28 @@
 function split_process_remove_beeps_STUDIO()
 % SPLIT_PROCESS_REMOVE_BEEPS
-%% KIND OF OPTIMISED FOR GREEN SCREEN AT RECORDING STUDIO...
+%% OPTIMISED FOR GREEN SCREEN AT RECORDING STUDIO...
 % 1) Detect 700 Hz beeps (between words) from raw audio (robust: level + tonal)
 % 2) Create "keep" segments that EXCLUDE the beep intervals
 % 3) For each segment: crop + blue->green key + audio cleanup -> MP4
 %
 % Outputs: segment_001.mp4, segment_002.mp4, ... in outDir
-% No concatenation.
+
 
 %% ===== USER SETTINGS =====
 ffmpeg = '"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"';
 
-inVideo = "C:\Users\mspedden\Videos\Institute of Cognitive Neuroscience\real_signs_all.mov";
-outDir  = "C:\Users\mspedden\Videos\test_segments_real_signs_dark_periwinkle";
+inVideo = "C:\Users\mspedden\Videos\Day 2 Real Signs.mp4";
+outDir  = "C:\Users\mspedden\Videos\real_signs_light_orange_model2";
 
 % Crop (MUST be even numbers)
 doCrop = false;   % set to true once you know your crop values
 cropX = 452; cropY = 2; cropW = 1070; cropH = 988;
 
 % Key / background
-%bgColor  = "0xCC7752"; %orange/pink
+bgColor  = "0xCC7752"; %lighter orange/pink (not using...)
+%bgColor  = " 0xAABEDC"; %periwinkle
 
-bgColor  = " 0xAABEDC"; %periwinkle
+%bgColor = "0xD37D4E";
 
 fpsExpr  = "25";     
 keyColor = "0x00FF00";      % green screen FOR NEW STUDIO
@@ -49,7 +50,7 @@ guardPad   = 0.03;         % s, trims a bit around beep so none remains
 detectorParams.tonalRatioMin = 3;    % larger = stricter "pure tone" requirement
 detectorParams.levelMadMult  = 6;   % larger = fewer detections
 detectorParams.rmsMadMult    = 6;    % optional loudness gate; larger = stricter
-detectorParams.useRmsGate    = true; % set false if beeps not always louder
+detectorParams.useRmsGate    = false; % set false if beeps not always louder
 
 % Debug plots
 doDebugPlots = true;
@@ -114,7 +115,11 @@ for i = 1:numel(starts)
     to = ends(i);
 
     outFile = fullfile(outDir, sprintf("segment_%03d.mp4", i));
-
+% Skip if already exported
+if isfile(outFile)
+    fprintf("Skipping segment %d (already exists)\n", i);
+    continue
+end
     if doCrop
         cropFilter = sprintf('crop=%d:%d:%d:%d,', cropW, cropH, cropX, cropY);
     else
