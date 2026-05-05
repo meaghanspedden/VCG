@@ -27,8 +27,8 @@ import os
 import sys
 
 # ── config ────────────────────────────────────────────────────────────────────
-DEFAULT_REAL_DIR   = r"C:\Users\mspedden\Videos\segments_real_signs"
-DEFAULT_PSEUDO_DIR = r"C:\Users\mspedden\Videos\segments_pseudo_signs"
+DEFAULT_REAL_DIR   = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2"
+DEFAULT_PSEUDO_DIR = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2"
 OUT_CSV            = os.path.join(DEFAULT_REAL_DIR, "ground_truth.csv")
 # ─────────────────────────────────────────────────────────────────────────────
 

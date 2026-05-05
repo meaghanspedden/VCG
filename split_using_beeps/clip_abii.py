@@ -16,12 +16,12 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 ffmpeg    = r"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
-in_video  = r"C:\Users\mspedden\Videos\Day 2 False Words.mp4"
+in_video  = r"C:\Users\mspedden\Videos\Day 2 False Wordspl.mp4"
 out_dir   = r"C:\Users\mspedden\Videos\false_words_light_orange_model2\clipped\final\best"
 word_name = "abii"
 
 preview_duration = 15.0   # seconds to show in waveform
-bg_color  = "0xCC7752"
+bg_color  = "0xCC7752"activate 
 key_color = "0x00FF00"
 vid_w     = 1872
 vid_h     = 1052

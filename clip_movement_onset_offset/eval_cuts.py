@@ -27,9 +27,9 @@ from mediapipe.tasks.python import vision
 from detection import detect_cuts, WRIST_IDX
 
 # ── paths ─────────────────────────────────────────────────────────────────────
-DEFAULT_REAL_DIR   = r"C:\Users\mspedden\Videos\segments_real_signs"
-DEFAULT_PSEUDO_DIR = r"C:\Users\mspedden\Videos\segments_pseudo_signs"
-GT_CSV             = r"C:\Users\mspedden\Videos\segments_real_signs\ground_truth.csv"
+DEFAULT_REAL_DIR   = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2"
+DEFAULT_PSEUDO_DIR = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2"
+GT_CSV             = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2\ground_truth.csv"
 MODEL_PATH         = r"C:\Users\mspedden\Documents\VCG\code\models\hand_landmarker.task"
 OUT_DIR            = r"C:\Users\mspedden\Documents\VCG\code"
 

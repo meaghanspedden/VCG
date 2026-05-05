@@ -7,8 +7,8 @@
 
 %% ===== USER SETTINGS =====
 
-videoFolder = "C:\Users\mspedden\Videos\false_words_periwinkle_model1\clipped\final\best\padded";
-wordListCSV = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\pseudoword_list.csv";
+videoFolder = "C:\Users\mspedden\Videos\real_signs_light_orange_model2\clipped\best";
+wordListCSV = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\ASL_subset_noun_stimuli_FINAL_1.csv";
 reportCSV   = fullfile(videoFolder, "coverage_report.csv");
 
 %% ===== LOAD WORD LIST =====

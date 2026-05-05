@@ -28,10 +28,10 @@ from mediapipe.tasks.python import vision
 from detection import detect_cuts, WRIST_IDX
 
 # ── paths ─────────────────────────────────────────────────────────────────────
-REAL_DIR        = r"C:\Users\mspedden\Videos\segments_real_signs"
+REAL_DIR        = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2"
 PSEUDO_DIR      = r"C:\Users\mspedden\Videos\segments_pseudo_signs"
 PRACTICE_DIR    = r"C:\Users\mspedden\Videos\segments_real_signs\practice"
-REAL_OUT_DIR    = r"C:\Users\mspedden\Videos\clipped_signs"
+REAL_OUT_DIR    = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2\clipped"
 PSEUDO_OUT_DIR  = r"C:\Users\mspedden\Videos\clipped_pseudo_signs"
 PRACTICE_OUT_DIR= r"C:\Users\mspedden\Videos\clipped_practice"
 MODEL_PATH      = r"C:\Users\mspedden\Documents\VCG\code\models\hand_landmarker.task"

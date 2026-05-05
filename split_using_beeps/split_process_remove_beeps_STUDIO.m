@@ -11,16 +11,16 @@ function split_process_remove_beeps_STUDIO()
 %% ===== USER SETTINGS =====
 ffmpeg = '"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"';
 
-inVideo = "C:\Users\mspedden\Videos\Day 2 Real Signs.mp4";
-outDir  = "C:\Users\mspedden\Videos\real_signs_light_orange_model2";
+inVideo = "C:\Users\mspedden\Videos\Day 1 False Signs.mp4";
+outDir  = "C:\Users\mspedden\Videos\false_signs_periwinkle_model1";
 
 % Crop (MUST be even numbers)
 doCrop = false;   % set to true once you know your crop values
 cropX = 452; cropY = 2; cropW = 1070; cropH = 988;
 
 % Key / background
-bgColor  = "0xCC7752"; %lighter orange/pink (not using...)
-%bgColor  = " 0xAABEDC"; %periwinkle
+%bgColor  = "0xCC7752"; %lighter orange/pink (not using...)
+bgColor  = " 0xAABEDC"; %periwinkle
 
 %bgColor = "0xD37D4E";
 

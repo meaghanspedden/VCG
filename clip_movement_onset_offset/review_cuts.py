@@ -1,10 +1,10 @@
-"""
+r"""
 review_cuts.py  –  review clipped sign videos and re-cut if needed
 
 Usage:
     python review_cuts.py                                          # default: clipped_signs folder
-    python review_cuts.py C:\\Users\\mspedden\\Videos\\clipped_signs
-    python review_cuts.py C:\\Users\\mspedden\\Videos\\clipped_pseudo_signs
+    python review_cuts.py C:\Users\mspedden\Videos\clipped_signs
+    python review_cuts.py C:\Users\mspedden\Videos\clipped_pseudo_signs
 
 Flow:
   1. Loops through all clipped videos in OUT_DIR
@@ -14,7 +14,7 @@ Flow:
   5. Saves progress so you can quit and resume
 
 Controls (review mode):
-    SPACE / Y      approve clip
+    SPACE / Y      approve clip  (prompts for sign name in terminal)
     R              flag for redo (opens original for re-cutting)
     S              skip for now (review later)
     Q              quit and save progress
@@ -24,12 +24,13 @@ Controls (re-cut mode):
     SHIFT+LEFT/RIGHT  -10 / +10 frames
     S              set START at current frame
     E              set END at current frame
-    ENTER          confirm new cut points and re-clip
+    ENTER          confirm new cut points and re-clip  (prompts for sign name)
     X              cancel re-cut (keep original clip, mark approved)
     Q              quit
 
 Output:
     review_log.csv   in OUT_DIR — status per clip (approved/redo/skipped)
+    columns: video, status, sign_name, note
 """
 
 import csv
@@ -41,10 +42,10 @@ import numpy as np
 import cv2
 
 # ── paths ─────────────────────────────────────────────────────────────────────
-CLIPPED_DIR  = r"C:\Users\mspedden\Videos\clipped_signs"
-REAL_DIR     = r"C:\Users\mspedden\Videos\segments_real_signs"
-PSEUDO_DIR   = r"C:\Users\mspedden\Videos\segments_pseudo_signs"
-PRACTICE_DIR = r"C:\Users\mspedden\Videos\segments_real_signs\practice"
+CLIPPED_DIR  = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2\clipped"
+REAL_DIR     = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2\clipped"
+PSEUDO_DIR   = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2\clipped"
+PRACTICE_DIR = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2\clipped"
 REVIEW_LOG   = os.path.join(CLIPPED_DIR, "review_log.csv")
 FFMPEG       = r"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
 
@@ -73,13 +74,25 @@ def load_review_log(log_path):
     return done
 
 
-def save_review_entry(log_path, video, status, note=""):
+def save_review_entry(log_path, video, status, sign_name="", note=""):
+    fieldnames = ["video", "status", "sign_name", "note"]
     write_header = not os.path.exists(log_path)
     with open(log_path, "a", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["video", "status", "note"])
+        w = csv.DictWriter(f, fieldnames=fieldnames)
         if write_header:
             w.writeheader()
-        w.writerow({"video": video, "status": status, "note": note})
+        w.writerow({"video": video, "status": status,
+                    "sign_name": sign_name, "note": note})
+
+
+def prompt_sign_name(clip_name):
+    """Pause the CV2 loop and ask for a sign name in the terminal."""
+    print(f"  Sign name for {clip_name} (press ENTER to leave blank): ", end="", flush=True)
+    try:
+        name = input().strip()
+    except EOFError:
+        name = ""
+    return name
 
 
 def find_original(name):
@@ -190,12 +203,12 @@ def recut_video(orig_path, clip_dst_path, fps_hint=None):
     """
     Open original video, let user scrub and set new start/end.
     Re-clips and overwrites clip_dst_path.
-    Returns: 'done', 'cancel', 'quit'
+    Returns: ('done', sign_name), ('cancel', ''), ('quit', '')
     """
     cap = cv2.VideoCapture(orig_path)
     if not cap.isOpened():
         print(f"  Cannot open original: {orig_path}")
-        return 'cancel'
+        return 'cancel', ''
 
     fps   = cap.get(cv2.CAP_PROP_FPS) or fps_hint or 30.05
     name  = os.path.basename(orig_path)
@@ -212,7 +225,7 @@ def recut_video(orig_path, clip_dst_path, fps_hint=None):
 
     if not frames:
         print("  No frames loaded.")
-        return 'cancel'
+        return 'cancel', ''
 
     total = len(frames)
     idx   = 0
@@ -262,17 +275,18 @@ def recut_video(orig_path, clip_dst_path, fps_hint=None):
                 cv2.destroyWindow("Re-cut")
                 _write_clip(frames, start, end, fps, clip_dst_path)
                 print(f"  Re-clipped: {start}–{end}  →  {os.path.basename(clip_dst_path)}")
-                return 'done'
+                sign_name = prompt_sign_name(os.path.basename(clip_dst_path))
+                return 'done', sign_name
 
         # ── cancel ───────────────────────────────────────────────────────────
         elif key == ord('x'):
             cv2.destroyWindow("Re-cut")
-            return 'cancel'
+            return 'cancel', ''
 
         # ── quit ─────────────────────────────────────────────────────────────
         elif key == ord('q'):
             cv2.destroyWindow("Re-cut")
-            return 'quit'
+            return 'quit', ''
 
 
 def _write_clip(frames, start, end, fps, dst_path):
@@ -355,29 +369,31 @@ def main():
             clip_path, clip_name, status_counts, total, idx)
 
         if result == 'approved':
-            print("  ✓ Approved")
+            sign_name = prompt_sign_name(clip_name)
+            print(f"  ✓ Approved  [{sign_name or '—'}]")
             status_counts["approved"] = status_counts.get("approved", 0) + 1
-            save_review_entry(review_log, clip_name, "approved")
+            save_review_entry(review_log, clip_name, "approved", sign_name)
 
         elif result == 'redo':
             print("  ✗ Flagged for redo — opening original...")
             orig = find_original(clip_name)
             if orig is None:
                 print(f"  WARNING: original not found for {clip_name}, marking skipped")
-                save_review_entry(review_log, clip_name, "skipped", "original not found")
+                save_review_entry(review_log, clip_name, "skipped", "", "original not found")
                 status_counts["skipped"] = status_counts.get("skipped", 0) + 1
                 continue
 
-            recut_result = recut_video(orig, clip_path)
+            recut_result, sign_name = recut_video(orig, clip_path)
 
             if recut_result == 'done':
-                print("  Re-cut complete")
+                print(f"  Re-cut complete  [{sign_name or '—'}]")
                 status_counts["redo"] = status_counts.get("redo", 0) + 1
-                save_review_entry(review_log, clip_name, "redo_done")
+                save_review_entry(review_log, clip_name, "redo_done", sign_name)
             elif recut_result == 'cancel':
-                print("  Re-cut cancelled — marking approved as-is")
+                sign_name = prompt_sign_name(clip_name)
+                print(f"  Re-cut cancelled — marking approved as-is  [{sign_name or '—'}]")
                 status_counts["approved"] = status_counts.get("approved", 0) + 1
-                save_review_entry(review_log, clip_name, "approved", "redo cancelled")
+                save_review_entry(review_log, clip_name, "approved", sign_name, "redo cancelled")
             elif recut_result == 'quit':
                 print("Quitting — progress saved.")
                 cv2.destroyAllWindows()
