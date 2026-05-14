@@ -20,7 +20,7 @@ from flask import Flask, render_template_string, request, jsonify, send_file
 
 # ===== USER SETTINGS =====
 
-clips_dir = r"C:\Users\mspedden\Videos\false_words_light_orange_model2\clipped\final"
+clips_dir = r"C:\Users\mspedden\Videos\real_signs_periwinkle_model1"
 best_dir  = os.path.join(clips_dir, "best")
 selections_file = os.path.join(clips_dir, "best_selections.csv")
 

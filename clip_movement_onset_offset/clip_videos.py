@@ -29,11 +29,11 @@ from detection import detect_cuts, WRIST_IDX
 
 # ── paths ─────────────────────────────────────────────────────────────────────
 REAL_DIR        = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2"
-PSEUDO_DIR      = r"C:\Users\mspedden\Videos\segments_pseudo_signs"
+PSEUDO_DIR      = r"C:\Users\mspedden\Videos\false_signs_periwinkle_model1"
 PRACTICE_DIR    = r"C:\Users\mspedden\Videos\segments_real_signs\practice"
 REAL_OUT_DIR    = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2\clipped"
-PSEUDO_OUT_DIR  = r"C:\Users\mspedden\Videos\clipped_pseudo_signs"
-PRACTICE_OUT_DIR= r"C:\Users\mspedden\Videos\clipped_practice"
+PSEUDO_OUT_DIR  = r"C:\Users\mspedden\Videos\false_signs_periwinkle_model1\clipped"
+PRACTICE_OUT_DIR= r"C:\Users\mspedden\Videos\false_signs_periwinkle_model1\practice"
 MODEL_PATH      = r"C:\Users\mspedden\Documents\VCG\code\models\hand_landmarker.task"
 FFMPEG          = r"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
 

@@ -1,4 +1,4 @@
-function split_process_remove_beeps_STUDIO()
+function split_process_remove_beeps_STUDIO_dontKEY()
 % SPLIT_PROCESS_REMOVE_BEEPS
 %% OPTIMISED FOR GREEN SCREEN AT RECORDING STUDIO...
 % 1) Detect 700 Hz beeps (between words) from raw audio (robust: level + tonal)
@@ -11,8 +11,8 @@ function split_process_remove_beeps_STUDIO()
 %% ===== USER SETTINGS =====
 ffmpeg = '"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"';
 
-inVideo = "C:\Users\mspedden\Videos\Day 1 False Signs.mp4";
-outDir  = "C:\Users\mspedden\Videos\false_signs_periwinkle_model1";
+inVideo = "C:\Users\mspedden\Videos\Day 2 False Signs.mp4";
+outDir  = "C:\Users\mspedden\Videos\false_signs_model2";
 
 
 % Key / background

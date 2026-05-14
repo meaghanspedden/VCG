@@ -28,7 +28,7 @@ from detection import detect_cuts, WRIST_IDX
 
 # ── paths ─────────────────────────────────────────────────────────────────────
 DEFAULT_REAL_DIR   = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2"
-DEFAULT_PSEUDO_DIR = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2"
+DEFAULT_PSEUDO_DIR = r"C:\Users\mspedden\Videos\false_signs_periwinkle_model1"
 GT_CSV             = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2\ground_truth.csv"
 MODEL_PATH         = r"C:\Users\mspedden\Documents\VCG\code\models\hand_landmarker.task"
 OUT_DIR            = r"C:\Users\mspedden\Documents\VCG\code"
@@ -115,9 +115,11 @@ def main():
     args = ap.parse_args()
 
     gt = load_ground_truth()
-    print(f"Loaded {len(gt)} ground truth entries\n")
+    # filter to pseudo signs only
+    gt = {k: v for k, v in gt.items() if v["sign_type"] == "pseudo"}
+    print(f"Loaded {len(gt)} pseudo ground truth entries\n")
 
-    video_dirs = [DEFAULT_REAL_DIR, DEFAULT_PSEUDO_DIR]
+    video_dirs = [DEFAULT_PSEUDO_DIR]
 
     # ── extract wrist-y signals for all GT videos ─────────────────────────────
     print("Extracting wrist height signals...")

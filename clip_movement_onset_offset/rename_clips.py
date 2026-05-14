@@ -17,7 +17,7 @@ import argparse
 from pathlib import Path
 
 # ===== USER SETTINGS =====
-CLIPPED_DIR    = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2\clipped"
+CLIPPED_DIR    = r"C:\Users\mspedden\Videos\false_signs_green_model2"
 DECISIONS_FILE = os.path.join(CLIPPED_DIR, "review_decisions.csv")
 # =========================
 

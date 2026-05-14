@@ -18,9 +18,9 @@ from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify, send_file, Response
 
 # ===== USER SETTINGS =====
-CLIPPED_DIR    = r"C:\Users\mspedden\Videos\real_signs_periwinkle_model1"
-ORIGINALS_DIR  = r"C:\Users\mspedden\Videos\real_signs_periwinkle_model1"
-PLOTS_DIR      = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2\clipped\diagnostic_plots"
+CLIPPED_DIR    = r"C:\Users\mspedden\Videos\false_signs_green_model2"
+ORIGINALS_DIR  = r"C:\Users\mspedden\Videos\false_signs_green_model2"
+PLOTS_DIR      = r"C:\Users\mspedden\Videos\false_signs_green_model2"
 DECISIONS_FILE = os.path.join(CLIPPED_DIR, "review_decisions.csv")
 FFMPEG         = r"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
 PAD_SECONDS    = 0.3
@@ -37,12 +37,22 @@ def load_decisions():
                 d[row['video']] = row
     return d
 
-def save_decision(video, decision, sign_name='', note=''):
+def save_decision(video, decision, sign_name='', note='', start_frame=None, end_frame=None, fps=None):
     decisions = load_decisions()
-    decisions[video] = {'video': video, 'decision': decision,
-                        'sign_name': sign_name, 'note': note}
+    row = {'video': video, 'decision': decision,
+           'sign_name': sign_name, 'note': note,
+           'start_frame': '' if start_frame is None else int(start_frame),
+           'end_frame':   '' if end_frame   is None else int(end_frame),
+           'fps':         '' if fps         is None else round(float(fps), 4)}
+    # preserve existing clip times if not provided
+    if start_frame is None and video in decisions:
+        row['start_frame'] = decisions[video].get('start_frame', '')
+        row['end_frame']   = decisions[video].get('end_frame', '')
+        row['fps']         = decisions[video].get('fps', '')
+    decisions[video] = row
     with open(DECISIONS_FILE, 'w', newline='', encoding='utf-8') as f:
-        w = csv.DictWriter(f, fieldnames=['video', 'decision', 'sign_name', 'note'])
+        w = csv.DictWriter(f, fieldnames=['video', 'decision', 'sign_name', 'note',
+                                          'start_frame', 'end_frame', 'fps'])
         w.writeheader()
         w.writerows(decisions.values())
 
@@ -76,6 +86,16 @@ def get_video_info(path):
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     cap.release()
     return fps, total
+
+def get_clip_frames(clip_path):
+    """Estimate start/end frames in the original from a clipped video.
+    The clip has PAD_SECONDS freeze at start and end — subtract those to get
+    the actual sign frames."""
+    fps, total = get_video_info(clip_path)
+    freeze_n = max(1, int(round(PAD_SECONDS * fps)))
+    start_frame = freeze_n
+    end_frame   = max(freeze_n, total - freeze_n - 1)
+    return start_frame, end_frame, fps
 
 def extract_frame_jpeg(path, frame_idx):
     cap = cv2.VideoCapture(path)
@@ -648,7 +668,19 @@ def serve_frames_all(filename):
 @app.route('/decide', methods=['POST'])
 def post_decide():
     d = request.json
-    save_decision(d['video'], d['decision'], d.get('sign_name', ''), d.get('note', ''))
+    video = d['video']
+    # read clip times from the clipped file if not already saved
+    existing = load_decisions().get(video, {})
+    if existing.get('start_frame', '') == '':
+        clip_path = os.path.join(CLIPPED_DIR, video)
+        if os.path.exists(clip_path):
+            sf, ef, fps = get_clip_frames(clip_path)
+            save_decision(video, d['decision'], d.get('sign_name', ''), d.get('note', ''),
+                          start_frame=sf, end_frame=ef, fps=fps)
+        else:
+            save_decision(video, d['decision'], d.get('sign_name', ''), d.get('note', ''))
+    else:
+        save_decision(video, d['decision'], d.get('sign_name', ''), d.get('note', ''))
     return jsonify({'ok': True})
 
 @app.route('/reclip', methods=['POST'])
@@ -673,7 +705,8 @@ def post_reclip():
     if not ok:
         return jsonify({'ok': False, 'error': 'FFmpeg failed — check terminal'})
 
-    save_decision(video, 'reclip', sign_name, note)
+    save_decision(video, 'reclip', sign_name, note,
+                  start_frame=start_frame, end_frame=end_frame, fps=fps)
     return jsonify({'ok': True})
 
 if __name__ == '__main__':

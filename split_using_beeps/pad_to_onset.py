@@ -1,39 +1,42 @@
 """
-pad_to_onset.py
+pad_to_onset.py  -  Pad each clip so speech onset lands at exactly 0.5s.
 
-For each clip in final/best:
-  1. Run webrtcvad to detect speech onset directly in the clip
-  2. If onset < 0.5s, prepend silence so onset lands at exactly 0.5s
-  3. If onset >= 0.5s, copy as-is
-  4. Save to 'padded' subfolder
+Instead of black frames, prepends a freeze of the first frame + silence.
+Copies as-is if onset is already >= 0.5s.
 
-This is more reliable than using log onset times because it works
-directly on the actual clip file regardless of renaming/reclipping.
+Run:   python pad_to_onset.py
+       python pad_to_onset.py --force
+       python pad_to_onset.py --file "C:\\path\\to\\olo.mp4"
 """
 
 import os
-import re
 import subprocess
 import tempfile
 import wave
+import argparse
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 from pathlib import Path
 
 # ===== USER SETTINGS =====
+CLIPS_DIR  = r"C:\Users\mspedden\Videos\final\Pseudowords\final selected pseudowords_1peri2orange"
+PADDED_DIR = os.path.join(CLIPS_DIR, "padded")
+FFMPEG     = r"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
 
-best_dir   = r"C:\Users\mspedden\Videos\false_words_light_orange_model2\clipped\final\best"
-padded_dir = os.path.join(best_dir, "padded")
-ffmpeg     = r"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
+TARGET_ONSET       = 0.5
+ENERGY_THRESH_MULT = 3.0   # lowered from 6.0
+MIN_ONSET          = 0.05
+SUSTAIN_MS         = 40    # lowered from 80
+# =========================
 
-target_onset       = 0.5   # seconds — desired onset in output clip
-energy_threshold_mult = 6.0  # MADs above median — lower = earlier onset detection
-min_onset          = 0.05  # ignore energy before this (avoids click artefacts)
+EXTS = (".mp4", ".mov", ".m4v", ".avi")
 
-# ===== EXTRACT WAV =====
 
 def extract_wav(video_path, target_fs=16000):
     tmp = tempfile.mktemp(suffix='.wav')
-    subprocess.run([ffmpeg, '-y', '-i', str(video_path),
+    subprocess.run([FFMPEG, '-y', '-i', str(video_path),
                     '-vn', '-ac', '1', '-ar', str(target_fs),
                     '-sample_fmt', 's16', tmp], capture_output=True)
     with wave.open(tmp, 'rb') as wf:
@@ -42,140 +45,182 @@ def extract_wav(video_path, target_fs=16000):
     os.remove(tmp)
     return raw, fs
 
-# ===== ENERGY ONSET DETECTION =====
 
-def detect_onset_energy(raw, fs, frame_ms=10, threshold_mult=6.0,
-                         min_onset=0.05, sustain_ms=80):
-    """
-    Detect speech onset using RMS energy threshold.
-    Requires energy to stay above threshold for sustain_ms to avoid
-    false triggers on brief clicks or transients.
-    """
+def compute_rms(raw, fs, frame_ms=10):
     frame_len   = int(fs * frame_ms / 1000)
     frame_bytes = frame_len * 2
     n_frames    = len(raw) // frame_bytes
+    times, rms  = [], []
+    for i in range(n_frames):
+        chunk = raw[i*frame_bytes:(i+1)*frame_bytes]
+        if len(chunk) < frame_bytes: break
+        s = np.frombuffer(chunk, dtype=np.int16).astype(np.float32) / 32768.0
+        rms.append(np.sqrt(np.mean(s**2)))
+        times.append(i * frame_ms / 1000.0)
+    return np.array(times), np.array(rms)
 
-    # Compute RMS per frame
+
+def detect_onset(raw, fs, threshold_mult=ENERGY_THRESH_MULT,
+                 min_onset=MIN_ONSET, sustain_ms=SUSTAIN_MS, frame_ms=10):
+    frame_len   = int(fs * frame_ms / 1000)
+    frame_bytes = frame_len * 2
+    n_frames    = len(raw) // frame_bytes
     rms = []
     for i in range(n_frames):
-        chunk = raw[i*frame_bytes : (i+1)*frame_bytes]
-        if len(chunk) < frame_bytes:
-            break
-        samples = np.frombuffer(chunk, dtype=np.int16).astype(np.float32) / 32768.0
-        rms.append(np.sqrt(np.mean(samples**2)))
+        chunk = raw[i*frame_bytes:(i+1)*frame_bytes]
+        if len(chunk) < frame_bytes: break
+        s = np.frombuffer(chunk, dtype=np.int16).astype(np.float32) / 32768.0
+        rms.append(np.sqrt(np.mean(s**2)))
     rms = np.array(rms)
-
-    # Adaptive threshold
     median = np.median(rms)
     mad    = np.median(np.abs(rms - median))
     thr    = median + threshold_mult * mad
-
-    # How many consecutive frames above threshold = sustain requirement
     sustain_frames = max(1, int(sustain_ms / frame_ms))
-
-    # Find first frame above threshold after min_onset that stays above
-    # threshold for sustain_frames consecutive frames
     for i in range(n_frames):
         t = i * frame_ms / 1000.0
-        if t < min_onset:
-            continue
+        if t < min_onset: continue
         if rms[i] > thr:
-            # Check sustain
             end = min(i + sustain_frames, n_frames)
             if np.sum(rms[i:end] > thr) >= sustain_frames * 0.75:
                 return t
-
     return None
 
-# ===== GET CLIP INFO =====
 
-def get_clip_info(clip_path):
-    result = subprocess.run([ffmpeg, '-hide_banner', '-i', str(clip_path)],
-                            capture_output=True, text=True)
-    out = result.stderr
-    vm  = re.search(r'(\d{3,4})x(\d{3,4})', out)
-    fm  = re.search(r'([\d.]+) fps', out)
-    w   = int(vm.group(1)) if vm else 1920
-    h   = int(vm.group(2)) if vm else 1080
-    fps = fm.group(1) if fm else "25"
-    return w, h, fps
+def save_onset_plot(clip_path, out_path, raw, fs, onset, pad_s):
+    """Save audio trace plot showing detected onset and target."""
+    samples = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+    wav_t   = np.arange(len(samples)) / fs
+    rms_t, rms = compute_rms(raw, fs)
 
-# ===== PAD CLIP =====
+    median = np.median(rms)
+    mad    = np.median(np.abs(rms - median))
+    thr    = median + ENERGY_THRESH_MULT * mad
 
-def pad_clip(clip_path, out_path, silence_s, w, h, fps):
-    silence_ms = int(round(silence_s * 1000))
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 5), sharex=True)
+    fig.patch.set_facecolor('#111')
+    for ax in (ax1, ax2):
+        ax.set_facecolor('#1a1a2e')
+        ax.tick_params(colors='#aaa')
+        ax.spines[:].set_color('#333')
+        ax.yaxis.label.set_color('#aaa')
+        ax.xaxis.label.set_color('#aaa')
+
+    ax1.plot(wav_t, samples, color='#5fb4ff', linewidth=0.4, alpha=0.8)
+    ax1.set_ylabel('amplitude', fontsize=9)
+    ax1.set_title(f"{Path(clip_path).stem}  —  onset={onset:.3f}s  pad={pad_s:.3f}s", color='#eee', fontsize=10)
+
+    ax2.plot(rms_t, rms, color='#ffb347', linewidth=1.2, label='RMS energy')
+    ax2.axhline(thr, color='#ff5f5f', linewidth=1, linestyle='--',
+                label=f'threshold ({ENERGY_THRESH_MULT} MAD)')
+    ax2.set_ylabel('RMS', fontsize=9)
+    ax2.set_xlabel('time (s)', fontsize=9)
+
+    for ax in (ax1, ax2):
+        ax.axvline(TARGET_ONSET, color='#888', linewidth=1, linestyle=':', alpha=0.6)
+        if onset is not None:
+            ax.axvline(onset, color='#7fff6e', linewidth=1.5, label='detected onset')
+
+    ax2.legend(fontsize=8, facecolor='#222', labelcolor='#ccc', loc='upper right')
+    plt.tight_layout()
+    fig.savefig(out_path, dpi=130, bbox_inches='tight', facecolor=fig.get_facecolor())
+    plt.close(fig)
+    print(f"  Plot saved: {out_path}")
+
+
+def pad_clip(clip_path, out_path, pad_s):
+    silence_ms = int(round(pad_s * 1000))
+    tmp_frame  = tempfile.mktemp(suffix='.png')
+    subprocess.run([FFMPEG, '-y', '-i', str(clip_path),
+                    '-vframes', '1', tmp_frame], capture_output=True)
     filter_complex = (
-        f'[0:v]tpad=start_duration={silence_s:.4f}:color=black[outv];'
+        f'[1:v]trim=duration={pad_s:.4f},setpts=PTS-STARTPTS[still];'
+        f'[still][0:v]concat=n=2:v=1:a=0[outv];'
         f'[0:a]adelay={silence_ms}|{silence_ms}[outa]'
     )
-    cmd = [ffmpeg, '-y', '-i', str(clip_path),
+    cmd = [FFMPEG, '-y', '-i', str(clip_path),
+           '-loop', '1', '-i', tmp_frame,
            '-filter_complex', filter_complex,
            '-map', '[outv]', '-map', '[outa]',
            '-c:v', 'libx264', '-crf', '18', '-pix_fmt', 'yuv420p',
-           '-c:a', 'aac', '-b:a', '192k',
-           str(out_path)]
+           '-c:a', 'aac', '-b:a', '192k', '-shortest', str(out_path)]
     result = subprocess.run(cmd, capture_output=True, text=True)
+    os.remove(tmp_frame)
+    if result.returncode != 0:
+        for line in result.stderr.strip().splitlines()[-4:]:
+            print(f"    {line}")
     return result.returncode == 0
 
-# ===== MAIN =====
+
+def copy_clip(clip_path, out_path):
+    subprocess.run([FFMPEG, '-y', '-i', str(clip_path),
+                    '-c', 'copy', str(out_path)], capture_output=True)
+
+
+def process_one(clip_path, out_path):
+    print(f"  {Path(clip_path).name} ... ", end='', flush=True)
+    try:
+        raw, fs = extract_wav(clip_path)
+        onset   = detect_onset(raw, fs)
+    except Exception as e:
+        print(f"audio error: {e} — copying as-is")
+        copy_clip(clip_path, out_path)
+        return
+
+    if onset is None:
+        print("no onset detected — copying as-is")
+        copy_clip(clip_path, out_path)
+        return
+
+    pad_s = round(TARGET_ONSET - onset, 4)
+
+    # save plot
+    plot_path = str(Path(out_path).with_suffix('')) + '_onset.png'
+    save_onset_plot(clip_path, plot_path, raw, fs, onset, max(pad_s, 0))
+
+    if pad_s <= 0.005:
+        print(f"onset={onset:.3f}s — no padding needed")
+        copy_clip(clip_path, out_path)
+    else:
+        ok = pad_clip(clip_path, out_path, pad_s)
+        if ok:
+            print(f"onset={onset:.3f}s — prepended {pad_s:.3f}s freeze")
+        else:
+            print(f"onset={onset:.3f}s — FFmpeg FAILED, copying as-is")
+            copy_clip(clip_path, out_path)
+
 
 def main():
-    os.makedirs(padded_dir, exist_ok=True)
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--force', action='store_true', help='Reprocess existing outputs')
+    ap.add_argument('--file',  default=None, help='Process a single file')
+    args = ap.parse_args()
 
-    clips = sorted(Path(best_dir).glob("*.mp4"))
-    print(f"Found {len(clips)} clips\n")
+    if args.file:
+        in_path  = args.file
+        out_path = str(Path(in_path).with_suffix('')) + '_padded.mp4'
+        process_one(in_path, out_path)
+        return
 
-    padded   = 0
-    no_pad   = 0
-    no_onset = 0
+    os.makedirs(PADDED_DIR, exist_ok=True)
+    clips = [f for f in sorted(os.listdir(CLIPS_DIR)) if f.lower().endswith(EXTS)]
+    if not clips:
+        print(f"No clips found in {CLIPS_DIR}")
+        return
 
-    for clip_path in clips:
-        name = clip_path.name
-        out_path = os.path.join(padded_dir, name)
+    print(f"Found {len(clips)} clips  |  target={TARGET_ONSET}s  thresh={ENERGY_THRESH_MULT} MAD  sustain={SUSTAIN_MS}ms")
+    print(f"Output: {PADDED_DIR}\n")
 
-        # Detect onset directly in this clip
-        try:
-            raw, fs = extract_wav(str(clip_path))
-            onset   = detect_onset_energy(raw, fs,
-                                          threshold_mult=energy_threshold_mult,
-                                          min_onset=min_onset)
-        except Exception as e:
-            print(f"  [{name}] VAD error: {e} — copying as-is")
-            subprocess.run([ffmpeg, '-y', '-i', str(clip_path),
-                            '-c', 'copy', str(out_path)], capture_output=True)
-            no_onset += 1
+    for i, fn in enumerate(clips):
+        clip_path = os.path.join(CLIPS_DIR, fn)
+        out_path  = os.path.join(PADDED_DIR, fn)
+        if not args.force and os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+            print(f"  [{i+1}/{len(clips)}] SKIP: {fn}")
             continue
+        print(f"  [{i+1}/{len(clips)}]", end=' ')
+        process_one(clip_path, out_path)
 
-        if onset is None:
-            print(f"  [{name}] no speech detected — copying as-is")
-            subprocess.run([ffmpeg, '-y', '-i', str(clip_path),
-                            '-c', 'copy', str(out_path)], capture_output=True)
-            no_onset += 1
-            continue
+    print(f"\nDone. Output: {PADDED_DIR}")
 
-        silence_needed = round(target_onset - onset, 4)
 
-        if silence_needed <= 0.005:
-            subprocess.run([ffmpeg, '-y', '-i', str(clip_path),
-                            '-c', 'copy', str(out_path)], capture_output=True)
-            no_pad += 1
-            print(f"  [{name}] onset={onset:.3f}s — no padding needed")
-        else:
-            w, h, fps = get_clip_info(str(clip_path))
-            if pad_clip(clip_path, out_path, silence_needed, w, h, fps):
-                print(f"  [{name}] onset={onset:.3f}s — prepended {silence_needed:.3f}s")
-                padded += 1
-            else:
-                print(f"  [{name}] ffmpeg FAILED — copying as-is")
-                subprocess.run([ffmpeg, '-y', '-i', str(clip_path),
-                                '-c', 'copy', str(out_path)], capture_output=True)
-                no_onset += 1
-
-    print(f"\nDone.")
-    print(f"  Padded:          {padded}")
-    print(f"  No pad needed:   {no_pad}")
-    print(f"  No onset/failed: {no_onset}")
-    print(f"  Output: {padded_dir}")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

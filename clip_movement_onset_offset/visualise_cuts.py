@@ -22,29 +22,24 @@ import cv2
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+from detection import DERIV_THRESH_START, DROP_FRAC_END, SMOOTH_WIN, BREAKOUT_THRESH
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 # ── paths ─────────────────────────────────────────────────────────────────────
-DEFAULT_VIDEO_DIR  = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2"
-DEFAULT_PSEUDO_DIR = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2"
-GT_CSV             = r"C:\Users\mspedden\Videos\real_signs_light_orange_model2\ground_truth.csv"
+DEFAULT_VIDEO_DIR  = r"C:\Users\mspedden\Videos\false_signs_periwinkle_model1"
+DEFAULT_PSEUDO_DIR = r"C:\Users\mspedden\Videos\false_signs_periwinkle_model1"
+GT_CSV             = r"C:\Users\mspedden\Videos\false_signs_periwinkle_model1\ground_truth.csv"
 MODEL_PATH         = r"C:\Users\mspedden\Documents\VCG\code\models\hand_landmarker.task"
 
-# ── tuneable defaults ──────────────────────────────────────────────────────────
+# ── tuneable defaults (velocity algorithm only — not used by height detection) ─
 T_LOW        = 0.004
 T_HIGH       = 0.008
-SMOOTH_WIN   = 9
 MIN_STILL_MS = 150
 MIN_MOVE_MS  = 100
-
-# wrist height derivative detection
-# fraction of signal range per frame — rising slope must drop below this to call start
-DERIV_THRESH_START = 0.015
-# fraction of signal range drop from peak to call end
-DROP_FRAC_END      = 0.20
+# DERIV_THRESH_START, DROP_FRAC_END, SMOOTH_WIN, BREAKOUT_THRESH imported from detection.py
 # ──────────────────────────────────────────────────────────────────────────────
 
 WRIST_IDX = 0   # landmark 0 = wrist in MediaPipe hand model

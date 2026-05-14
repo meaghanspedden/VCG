@@ -14,6 +14,7 @@ SMOOTH_WIN          = 13      # smoothing window (must be odd)
 BASELINE_FRAMES     = 20      # frames at start used to establish rest baseline
 BREAKOUT_THRESH     = 0.15    # forward-scan: rise above baseline (fraction of signal range)
 MIN_VALID_FRAC      = 0.15    # minimum fraction of frames with valid detections
+MAX_SEARCH_SECONDS  = 10.0    # ignore frames beyond this time for peak detection (0 = no limit)
 WRIST_IDX           = 0       # MediaPipe wrist landmark index
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,8 @@ def detect_cuts(wrist_y, fps,
                 drop_frac=DROP_FRAC_END,
                 breakout_thresh=BREAKOUT_THRESH,
                 smooth_win=SMOOTH_WIN,
-                baseline_frames=BASELINE_FRAMES):
+                baseline_frames=BASELINE_FRAMES,
+                max_search_seconds=MAX_SEARCH_SECONDS):
     """
     Detect sign onset and offset from a wrist-height signal.
 
@@ -65,6 +67,7 @@ def detect_cuts(wrist_y, fps,
     breakout_thresh: forward-scan rise threshold (fraction of signal range)
     smooth_win     : smoothing window size (odd int)
     baseline_frames: number of initial frames used for baseline median
+    max_search_seconds: only search this many seconds for the peak (0 = whole video)
 
     Returns
     -------
@@ -81,7 +84,12 @@ def detect_cuts(wrist_y, fps,
     if sig_range < 1e-4:
         return None, None, "no_height_variation"
 
-    peak_idx = int(np.argmax(y_sm))
+    # limit peak search to first max_search_seconds if set
+    if max_search_seconds and max_search_seconds > 0:
+        search_limit = min(len(y_sm), int(round(max_search_seconds * fps)))
+    else:
+        search_limit = len(y_sm)
+    peak_idx = int(np.argmax(y_sm[:search_limit]))
 
     # ── start detection: forward scan ────────────────────────────────────────
     n_base   = min(baseline_frames, peak_idx)        # don't overshoot peak

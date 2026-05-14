@@ -7,7 +7,7 @@
 
 %% ===== USER SETTINGS =====
 
-videoFolder = "C:\Users\mspedden\Videos\real_signs_light_orange_model2\clipped\best";
+videoFolder = "C:\Users\mspedden\Videos\real_words_model2_split3";
 wordListCSV = "C:\Users\mspedden\OneDrive - University College London\Sign language OPMs\Stimuli list\ASL_subset_noun_stimuli_FINAL_1.csv";
 reportCSV   = fullfile(videoFolder, "coverage_report.csv");
 
@@ -34,10 +34,11 @@ matched  = strings(numel(words), 1);
 for i = 1:numel(words)
     w        = words(i);
     safe     = strrep(w, " ", "_");
-
-    % Match exact name OR any rep variant (e.g. abii.mp4 or abii_rep1.mp4)
+    % Match exact name, rep variants, or numbered variants (e.g. football2.mp4)
+    numbered = ~cellfun(@isempty, regexp(filenames, "^" + safe + "\d+\.mp4$", 'once'));
     hits = filenames(startsWith(filenames, safe + ".mp4") | ...
-                     startsWith(filenames, safe + "_rep"));
+                     startsWith(filenames, safe + "_rep") | ...
+                     numbered);
 
     if numel(hits) == 1
         status(i)  = "OK";
