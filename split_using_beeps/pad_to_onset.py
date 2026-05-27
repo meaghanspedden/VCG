@@ -21,13 +21,13 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # ===== USER SETTINGS =====
-CLIPS_DIR  = r"C:\Users\mspedden\Videos\final\Pseudowords\final selected pseudowords_1peri2orange"
+CLIPS_DIR  = r"C:\Users\mspedden\Videos"
 PADDED_DIR = os.path.join(CLIPS_DIR, "padded")
 FFMPEG     = r"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
 
 TARGET_ONSET       = 0.5
 ENERGY_THRESH_MULT = 3.0   # lowered from 6.0
-MIN_ONSET          = 0.05
+MIN_ONSET          = 0.3
 SUSTAIN_MS         = 40    # lowered from 80
 # =========================
 

@@ -16,10 +16,9 @@ from flask import Flask, render_template_string, request, jsonify, send_file, Re
 FFMPEG  = r"C:\Users\mspedden\Documents\ffmpeg-2026-05-06-git-f2e5eff3ff-full_build\bin\ffmpeg.exe"
 FFPROBE = r"C:\Users\mspedden\Documents\ffmpeg-2026-05-06-git-f2e5eff3ff-full_build\bin\ffprobe.exe"
 
-INPUT_DIR  = r"C:\Users\mspedden\Videos\real_words_model2_split2"
-OUTPUT_DIR = r"C:\Users\mspedden\Videos\real_words_model2_split3"
-BEEP_CSV   = r"C:\Users\mspedden\Videos\real_words_model2_split2\beep_timings.csv"
-# CSV maps filenames to clips in OUTPUT_DIR
+INPUT_DIR  = r"C:\Users\mspedden\Videos\real_words_model1\clipped\best\selected"
+OUTPUT_DIR = r"C:\Users\mspedden\Videos\real_words_model1\clipped\best\selected\beepcorrected"
+BEEP_CSV   = r"C:\Users\mspedden\Videos\real_words_model1\clipped\best\selected\beep_timings.csv"
 
 PRE_ONSET_S = 0.5
 # ==================
@@ -130,20 +129,25 @@ def save_wav(samples, fs, nch, path):
 
 
 def replace_with_baseline(samples, fs, beep_start_s, beep_end_s, baseline_start_s, baseline_end_s):
-    bs = int(beep_start_s * fs); be = int(beep_end_s * fs)
+    bs  = int(beep_start_s * fs);     be  = int(beep_end_s * fs)
     bls = int(baseline_start_s * fs); ble = int(baseline_end_s * fs)
-    beep_len = be - bs; baseline_len = ble - bls
-    mono = samples[:, 0] if samples.ndim == 2 else samples
-    baseline_audio = mono[bls:ble]
-    if baseline_len < beep_len:
-        baseline_audio = np.tile(baseline_audio, (beep_len // baseline_len) + 1)
-    baseline_audio = baseline_audio[:beep_len]
+    beep_len     = be - bs
+    baseline_len = ble - bls
     fixed = samples.copy()
+
     if fixed.ndim == 2:
+        # Handle each channel independently using its own baseline
         for ch in range(fixed.shape[1]):
-            fixed[bs:be, ch] = baseline_audio
+            baseline_audio = fixed[bls:ble, ch]
+            if baseline_len < beep_len:
+                baseline_audio = np.tile(baseline_audio, (beep_len // baseline_len) + 1)
+            fixed[bs:be, ch] = baseline_audio[:beep_len]
     else:
-        fixed[bs:be] = baseline_audio
+        baseline_audio = fixed[bls:ble]
+        if baseline_len < beep_len:
+            baseline_audio = np.tile(baseline_audio, (beep_len // baseline_len) + 1)
+        fixed[bs:be] = baseline_audio[:beep_len]
+
     return fixed
 
 
@@ -207,247 +211,189 @@ body { font-family:'JetBrains Mono',monospace; background:var(--bg); color:var(-
 
 video { width:100%; border-radius:4px; background:#000; }
 
-.wc { background:var(--panel); border:1px solid var(--border); border-radius:4px; padding:10px; }
-.wlabel { font-size:0.65rem; color:var(--dim); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.08em; }
-#waveform-canvas { width:100%; height:110px; display:block; border:1px solid var(--border); border-radius:2px; cursor:crosshair; }
-.legend { display:flex; gap:14px; margin-top:5px; flex-wrap:wrap; }
-.li { display:flex; align-items:center; gap:5px; font-size:0.65rem; color:var(--dim); }
-.lb { width:10px; height:10px; border-radius:2px; }
-.region-info { font-size:0.7rem; color:var(--dim); margin-top:5px; min-height:18px; }
+#canvas-wrap { position:relative; width:100%; }
+canvas { width:100%; height:100px; display:block; cursor:crosshair; border-radius:4px; }
+#region-info { font-size:0.68rem; color:var(--dim); min-height:1.2em; }
 
-.slabel { font-size:0.65rem; color:var(--dim); text-transform:uppercase;
-          letter-spacing:0.08em; margin-bottom:2px; }
-.mode-ind { font-size:0.7rem; padding:5px 8px; border-radius:3px; text-align:center;
-            font-weight:600; margin-bottom:4px; }
-.btn { padding:7px 12px; border:none; border-radius:3px; cursor:pointer;
-       font-family:'JetBrains Mono',monospace; font-size:0.7rem; font-weight:600;
-       letter-spacing:0.05em; text-transform:uppercase; width:100%; margin-bottom:3px;
-       transition:opacity .15s; }
-.btn:hover { opacity:0.85; }
-.btn:disabled { opacity:0.3; cursor:not-allowed; }
-.btn-green  { background:var(--accent); color:#000; }
-.btn-yellow { background:var(--amber); color:#000; }
-.btn-red    { background:var(--red); color:#fff; }
-.btn-blue   { background:var(--blue); color:#000; }
-.btn-ghost  { background:transparent; color:var(--text); border:1px solid var(--border); }
-.btn-ghost:hover { border-color:var(--accent); color:var(--accent); }
-.divider { border:none; border-top:1px solid var(--border); margin:4px 0; }
+.btn { padding:6px 14px; border:none; border-radius:4px; cursor:pointer;
+       font-family:inherit; font-size:0.75rem; font-weight:600; transition:opacity .15s; }
+.btn:disabled { opacity:0.35; cursor:default; }
+.btn-accent  { background:var(--accent); color:#000; }
+.btn-amber   { background:var(--amber);  color:#000; }
+.btn-red     { background:var(--red);    color:#fff; }
+.btn-muted   { background:var(--muted);  color:var(--text); }
 
-.status { font-size:0.7rem; padding:6px 8px; border-radius:3px; text-align:center; }
-.status.ok    { background:rgba(0,212,170,0.1); color:var(--accent); }
-.status.error { background:rgba(255,95,95,0.1); color:var(--red); }
-.status.info  { background:rgba(255,255,255,0.04); color:var(--dim); }
+.status { font-size:0.72rem; min-height:1.2em; }
+.status.ok    { color:var(--accent); }
+.status.error { color:var(--red); }
+.status.info  { color:var(--blue); }
 
-.rename-row { display:flex; gap:6px; }
-.rename-row input { flex:1; background:#0c0c0f; border:1px solid var(--border);
-                    border-radius:3px; color:var(--text); font-family:'JetBrains Mono',monospace;
-                    font-size:0.7rem; padding:5px 7px; }
-.rename-row input:focus { outline:none; border-color:var(--accent); }
-
-#corrected-video { width:100%; border-radius:4px; background:#000;
-                   border:1px solid var(--accent); margin-top:6px; }
+label { font-size:0.7rem; color:var(--dim); }
+#clip-name { font-size:0.8rem; color:var(--text); font-weight:600; word-break:break-all; }
+.section-title { font-size:0.65rem; color:var(--dim); text-transform:uppercase;
+                 letter-spacing:0.08em; border-bottom:1px solid var(--border); padding-bottom:4px; }
+input[type=text] { width:100%; background:#1a1a22; border:1px solid var(--border);
+                   color:var(--text); padding:5px 8px; border-radius:4px;
+                   font-family:inherit; font-size:0.75rem; }
+#corrected-container { display:none; }
 </style>
 </head>
 <body>
 <div id="hdr">
   <span id="hdr-title">BEEP REVIEW</span>
-  <span style="font-size:0.7rem;color:var(--dim)" id="clip-name">—</span>
-  <span id="progress">—</span>
+  <span id="progress"><span id="done-count">0 / 0 processed</span></span>
 </div>
 <div id="main">
-
-  <!-- scrollable clip list -->
   <div id="list"></div>
-
   <div id="review">
     <div id="left-col">
-      <video id="orig-video" controls></video>
-
-      <div class="wc">
-        <div class="wlabel">Full clip waveform — drag to mark baseline (yellow) then beep (red)</div>
-        <canvas id="waveform-canvas"></canvas>
-        <div class="legend">
-          <div class="li"><div class="lb" style="background:rgba(255,179,71,0.5)"></div>Baseline</div>
-          <div class="li"><div class="lb" style="background:rgba(255,95,95,0.5)"></div>Beep</div>
-        </div>
-        <div class="region-info" id="region-info">—</div>
+      <div>
+        <label>ORIGINAL</label>
+        <video id="orig-video" controls></video>
       </div>
-
-      <div id="corrected-container" style="display:none" class="wc">
-        <div class="wlabel" style="color:var(--accent)">Corrected clip</div>
+      <div id="canvas-wrap">
+        <canvas id="waveform-canvas"></canvas>
+      </div>
+      <div id="region-info"></div>
+      <div id="corrected-container">
+        <label>CORRECTED PREVIEW</label>
         <video id="corrected-video" controls></video>
       </div>
     </div>
-
     <div id="right-col">
-      <div class="slabel">Step 1 — Baseline</div>
-      <div id="mode-ind" class="mode-ind" style="background:rgba(255,179,71,0.15);color:var(--amber);border:1px solid var(--amber)">MODE: SELECT BASELINE</div>
-      <button class="btn btn-yellow" onclick="setMode('baseline')">Set Baseline Region</button>
-      <button class="btn btn-ghost"  onclick="clearBaseline()">Clear Baseline</button>
+      <div id="clip-name">—</div>
+      <div class="status" id="status"></div>
 
-      <div class="divider"></div>
-      <div class="slabel">Step 2 — Beep</div>
-      <button class="btn btn-red"   onclick="setMode('beep')">Set Beep Region</button>
-      <button class="btn btn-ghost" onclick="clearBeep()">Clear Beep</button>
-
-      <div class="divider"></div>
-      <div class="slabel">Step 3 — Export</div>
-      <button class="btn btn-green" id="btn-apply" onclick="applyFix()" disabled>Preview Fix</button>
-      <button class="btn btn-green" id="btn-save"  onclick="saveFix()"  disabled>Save Fixed Clip</button>
-      <button class="btn btn-ghost" onclick="skipClip()">Skip (No Beep)</button>
-
-      <div class="divider"></div>
-      <div class="slabel">Rename Clip</div>
-      <div class="rename-row">
-        <input type="text" id="rename-input" placeholder="new_name (no .mp4)">
+      <div class="section-title">Mode</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-amber" onclick="setMode('baseline')">Set Baseline</button>
+        <button class="btn btn-red"   onclick="setMode('beep')">Set Beep</button>
+        <button class="btn btn-muted" onclick="clearRegions()">Clear</button>
       </div>
-      <button class="btn btn-blue" onclick="renameClip()" style="margin-top:3px">Rename & Update CSV</button>
-
-      <div class="divider"></div>
-      <div class="slabel">Navigate</div>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost" style="flex:1;margin:0" onclick="navigate(-1)">← Prev</button>
-        <button class="btn btn-ghost" style="flex:1;margin:0" onclick="navigate(1)">Next →</button>
+      <div style="font-size:0.68rem;color:var(--dim);">
+        Click+drag on waveform to mark regions.
       </div>
 
-      <div class="divider"></div>
-      <div id="status" class="status info">Select a clip</div>
-      <div style="font-size:0.65rem;color:var(--dim);margin-top:4px" id="done-count">—</div>
+      <div class="section-title">Actions</div>
+      <button class="btn btn-accent" id="btn-apply"  onclick="applyFix()"  disabled>Preview Fix</button>
+      <button class="btn btn-accent" id="btn-save"   onclick="saveFix()"   disabled>Save</button>
+      <button class="btn btn-muted"  id="btn-skip"   onclick="skipClip()">Skip (copy as-is)</button>
+
+      <div class="section-title">Rename</div>
+      <input type="text" id="rename-input" placeholder="new_name.mp4">
+      <button class="btn btn-muted" onclick="renameClip()">Rename</button>
+
+      <div class="section-title">Navigate</div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-muted" onclick="navigate(-1)">← Prev</button>
+        <button class="btn btn-muted" onclick="navigate(1)">Next →</button>
+      </div>
     </div>
   </div>
 </div>
-
 <script>
-let clips=[], currentIndex=-1, waveformData=[], waveformFs=1, clipDuration=1.0;
-let mode='baseline', baselineRegion=null, beepRegion=null, dragStart=null;
-const canvas = document.getElementById('waveform-canvas');
-const ctx = canvas.getContext('2d');
+let clips=[], currentIndex=0, waveformData=null, clipDuration=1;
+let baselineRegion=null, beepRegion=null, dragStart=null, currentMode='baseline';
 
 async function init() {
-  const d = await (await fetch('/api/clips')).json();
-  clips = d.clips;
-  renderList();
-  updateDone();
-  // auto-select first undone
-  const first = clips.findIndex(c => !c.done);
-  if (first >= 0) selectClip(first);
-  else if (clips.length > 0) selectClip(0);
+  const r=await fetch('/api/clips'); const d=await r.json();
+  clips=d.clips; renderList(); updateDone();
+  if (clips.length>0) selectClip(0);
 }
 
 function renderList() {
-  const el = document.getElementById('list');
-  el.innerHTML = clips.map((c, i) =>
-    '<div class="ci' + (i===currentIndex?' active':'') + '" onclick="selectClip(' + i + ')" id="ci-' + i + '">' +
-    '<div class="dot' + (c.done?' done': c.skipped?' skip':'') + '"></div>' +
-    '<span class="ci-name">' + c.name.replace('.mp4','') + '</span>' +
-    '</div>'
-  ).join('');
+  const el=document.getElementById('list'); el.innerHTML='';
+  clips.forEach((c,i)=>{
+    const div=document.createElement('div');
+    div.className='ci'+(i===currentIndex?' active':'');
+    div.innerHTML=`<span class="dot${c.done?' done':c.skipped?' skip':''}"></span>
+                   <span class="ci-name">${c.name}</span>`;
+    div.onclick=()=>selectClip(i);
+    el.appendChild(div);
+  });
 }
 
-async function selectClip(idx) {
-  currentIndex = idx;
-  const clip = clips[idx];
-
-  // Update list highlight
-  document.querySelectorAll('.ci').forEach((el, i) => el.classList.toggle('active', i===idx));
-  // Scroll into view
-  const el = document.getElementById('ci-' + idx);
-  if (el) el.scrollIntoView({block:'nearest'});
-
-  document.getElementById('clip-name').textContent = clip.name;
-  document.getElementById('progress').textContent = (idx+1) + ' / ' + clips.length;
-
-  const vid = document.getElementById('orig-video');
-  vid.src = '/video/' + encodeURIComponent(clip.name);
-  vid.load();
-  vid.oncanplay = () => vid.play();
-
-  baselineRegion=null; beepRegion=null;
+async function selectClip(i) {
+  currentIndex=i; renderList();
+  const c=clips[i];
+  document.getElementById('clip-name').textContent=c.name;
+  document.getElementById('orig-video').src='/video/'+encodeURIComponent(c.name)+'?t='+Date.now();
   document.getElementById('corrected-container').style.display='none';
-  document.getElementById('btn-apply').disabled=true;
   document.getElementById('btn-save').disabled=true;
-  document.getElementById('rename-input').value='';
-  updateRegionInfo();
-  setMode('baseline');
+  baselineRegion=null; beepRegion=null; waveformData=null;
   setStatus('Loading waveform...','info');
-
-  const wd = await (await fetch('/api/waveform/' + encodeURIComponent(clip.name))).json();
-  waveformData=wd.samples; waveformFs=wd.fs; clipDuration=wd.total_duration;
-
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    drawWaveform();
-    setStatus(clip.done ? 'Already processed' : 'Step 1: drag to select quiet baseline region', 'info');
-  }));
+  const wr=await fetch('/api/waveform/'+encodeURIComponent(c.name));
+  const wd=await wr.json();
+  waveformData=wd.samples; clipDuration=wd.total_duration;
+  drawWaveform(); setStatus('','');
 }
 
-function setMode(m) {
-  mode=m;
-  const ind=document.getElementById('mode-ind');
-  if (m==='baseline') {
-    ind.textContent='MODE: SELECT BASELINE';
-    ind.style='background:rgba(255,179,71,0.15);color:var(--amber);border:1px solid var(--amber);font-size:0.7rem;padding:5px 8px;border-radius:3px;text-align:center;font-weight:600;margin-bottom:4px;';
-  } else {
-    ind.textContent='MODE: SELECT BEEP';
-    ind.style='background:rgba(255,95,95,0.15);color:var(--red);border:1px solid var(--red);font-size:0.7rem;padding:5px 8px;border-radius:3px;text-align:center;font-weight:600;margin-bottom:4px;';
-  }
-}
+function setMode(m) { currentMode=m; setStatus('Mode: '+m,'info'); }
 
-function clearBaseline() { baselineRegion=null; drawWaveform(); updateRegionInfo(); checkReady(); }
-function clearBeep()     { beepRegion=null;     drawWaveform(); updateRegionInfo(); checkReady(); }
+function clearRegions() { baselineRegion=null; beepRegion=null; drawWaveform(); updateRegionInfo(); checkReady(); }
+
+const canvas=document.getElementById('waveform-canvas');
+const ctx=canvas.getContext('2d');
 
 function drawWaveform() {
-  const rect=canvas.getBoundingClientRect();
-  const W=Math.floor(rect.width)||600, H=110;
+  const W=canvas.offsetWidth, H=canvas.offsetHeight;
   canvas.width=W; canvas.height=H;
-  ctx.fillStyle='#080810'; ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle='#222230'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
-  if (waveformData.length>0) {
-    ctx.strokeStyle='#00d4aa'; ctx.lineWidth=1; ctx.beginPath();
-    for (let px=0;px<W;px++) {
-      const si=Math.floor(px/W*waveformData.length);
-      const val=waveformData[si]||0, y=H/2-val*(H/2-4);
-      px===0?ctx.moveTo(px,y):ctx.lineTo(px,y);
-    }
-    ctx.stroke();
+  ctx.fillStyle='#1a1a2e'; ctx.fillRect(0,0,W,H);
+  if (!waveformData||waveformData.length===0) return;
+  const n=waveformData.length;
+
+  function drawRegion(reg, color) {
+    if (!reg) return;
+    ctx.fillStyle=color;
+    ctx.fillRect(reg.start*W, 0, (reg.end-reg.start)*W, H);
   }
-  if (baselineRegion) {
-    ctx.fillStyle='rgba(255,179,71,0.2)';
-    ctx.fillRect(baselineRegion.start*W,0,(baselineRegion.end-baselineRegion.start)*W,H);
-    ctx.strokeStyle='#ffb347'; ctx.lineWidth=1.5;
-    ctx.strokeRect(baselineRegion.start*W,0,(baselineRegion.end-baselineRegion.start)*W,H);
+  drawRegion(baselineRegion, 'rgba(255,179,71,0.18)');
+  drawRegion(beepRegion,     'rgba(255,95,95,0.18)');
+
+  if (dragStart!==null) {
+    const x0=Math.min(dragStart, dragCurrent), x1=Math.max(dragStart, dragCurrent);
+    ctx.fillStyle=currentMode==='baseline'?'rgba(255,179,71,0.28)':'rgba(255,95,95,0.28)';
+    ctx.fillRect(x0*W,0,(x1-x0)*W,H);
   }
-  if (beepRegion) {
-    ctx.fillStyle='rgba(255,95,95,0.2)';
-    ctx.fillRect(beepRegion.start*W,0,(beepRegion.end-beepRegion.start)*W,H);
-    ctx.strokeStyle='#ff5f5f'; ctx.lineWidth=1.5;
-    ctx.strokeRect(beepRegion.start*W,0,(beepRegion.end-beepRegion.start)*W,H);
+
+  ctx.strokeStyle='#5fb4ff'; ctx.lineWidth=1;
+  ctx.beginPath();
+  for (let x=0;x<W;x++) {
+    const idx=Math.floor(x/W*n);
+    const y=H/2 - waveformData[idx]*H/2*0.85;
+    x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
   }
+  ctx.stroke();
+
+  function drawRegionBorder(reg, color, label) {
+    if (!reg) return;
+    ctx.strokeStyle=color; ctx.lineWidth=1.5;
+    ctx.strokeRect(reg.start*W, 1, (reg.end-reg.start)*W, H-2);
+    ctx.fillStyle=color; ctx.font='10px JetBrains Mono';
+    ctx.fillText(label, reg.start*W+4, 13);
+  }
+  drawRegionBorder(baselineRegion,'#ffb347','BL');
+  drawRegionBorder(beepRegion,    '#ff5f5f','BEEP');
 }
 
-canvas.addEventListener('mousedown', e => {
+let dragCurrent=0;
+canvas.addEventListener('mousedown', e=>{
   const r=canvas.getBoundingClientRect();
-  dragStart=(e.clientX-r.left)/r.width; e.preventDefault();
+  dragStart=(e.clientX-r.left)/r.width; dragCurrent=dragStart;
 });
-canvas.addEventListener('mousemove', e => {
+canvas.addEventListener('mousemove', e=>{
   if (dragStart===null) return;
+  const r=canvas.getBoundingClientRect();
+  dragCurrent=(e.clientX-r.left)/r.width;
   drawWaveform();
-  const r=canvas.getBoundingClientRect();
-  const x=(e.clientX-r.left)/r.width;
-  const x1=Math.min(dragStart,x)*canvas.width, x2=Math.abs(x-dragStart)*canvas.width;
-  ctx.fillStyle=mode==='baseline'?'rgba(255,179,71,0.15)':'rgba(255,95,95,0.15)';
-  ctx.fillRect(x1,0,x2,canvas.height);
-  ctx.strokeStyle=mode==='baseline'?'#ffb347':'#ff5f5f';
-  ctx.lineWidth=1.5; ctx.strokeRect(x1,0,x2,canvas.height);
 });
-canvas.addEventListener('mouseup', e => {
-  if (dragStart===null) return;
-  const r=canvas.getBoundingClientRect();
-  const dragEnd=(e.clientX-r.left)/r.width;
-  if (Math.abs(dragEnd-dragStart)>0.005) {
-    const region={start:Math.min(dragStart,dragEnd), end:Math.max(dragStart,dragEnd)};
-    if (mode==='baseline') { baselineRegion=region; setMode('beep'); setStatus('Step 2: drag to select the beep region','info'); }
-    else                   { beepRegion=region; setStatus('Step 3: click Preview Fix','info'); }
+canvas.addEventListener('mouseup', e=>{
+  if (dragStart!==null) {
+    const r=canvas.getBoundingClientRect();
+    const x=(e.clientX-r.left)/r.width;
+    const reg={start:Math.min(dragStart,x), end:Math.max(dragStart,x)};
+    if (currentMode==='baseline') baselineRegion=reg;
+    else beepRegion=reg;
     drawWaveform(); updateRegionInfo(); checkReady();
   }
   dragStart=null;
@@ -633,10 +579,8 @@ def api_rename():
     if new_path.exists():
         return jsonify({'error': 'Target already exists: ' + new_name}), 400
 
-    # Check output dir first, then input dir
     old_path = Path(OUTPUT_DIR) / old_name
     if not old_path.exists():
-        # Not in output yet — copy from input with new name
         src = Path(INPUT_DIR) / old_name
         if not src.exists():
             return jsonify({'error': 'File not found in input or output: ' + old_name}), 404

@@ -19,8 +19,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from pathlib import Path
 
 # ===== USER SETTINGS =====
-CLIPS_DIR  = r"C:\Users\mspedden\Videos\final\Pseudowords\final selected pseudowords_1peri2orange"
-OUT_PDF    = os.path.join(r"C:\Users\mspedden\Videos\final\Pseudowords\final selected pseudowords_1peri2orange", "onset_traces.pdf")
+CLIPS_DIR  = r"C:\Users\mspedden\Videos\real_words_model1\clipped\best\selected"
+OUT_PDF    = os.path.join(r"C:\Users\mspedden\Videos\real_words_model1\clipped\best\selected", "onset_traces.pdf")
 FFMPEG     = r"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
 
 TARGET_ONSET       = 0.5

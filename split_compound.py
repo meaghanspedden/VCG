@@ -1,82 +1,83 @@
+import os
 import subprocess
 import json
 from pathlib import Path
 
-# ── Configuration ────────────────────────────────────────────────────────────
-
-FFMPEG  = r"C:\Users\mspedden\Documents\ffmpeg-2026-05-06-git-f2e5eff3ff-full_build\bin\ffmpeg.exe"
-FFPROBE = r"C:\Users\mspedden\Documents\ffmpeg-2026-05-06-git-f2e5eff3ff-full_build\bin\ffprobe.exe"
-
-# The long compound clip from DaVinci
-COMPOUND_CLIP = r"C:\Users\mspedden\Videos\final\Real signs\key redo model 1_00090000.mov"
-
-# Original individual clips — used to get durations and names
-SOURCE_DIR = r"C:\Users\mspedden\Videos\final\Real signs\model1_to_rekey"
-
-# Where to save the split clips
-OUTPUT_DIR = r"C:\Users\mspedden\Videos\final\Real signs\model1_rekeyed"
-
-# ── Setup ─────────────────────────────────────────────────────────────────────
-
-output_path = Path(OUTPUT_DIR)
-output_path.mkdir(parents=True, exist_ok=True)
-
-# Get all original clips in alphabetical order (must match order in compound clip)
-source_path = Path(SOURCE_DIR)
-orig_clips = sorted([f for f in source_path.iterdir() if f.suffix.lower() == ".mp4"])
-
-print(f"Found {len(orig_clips)} original clips")
-
-# ── Get duration of each original clip ───────────────────────────────────────
+# Paths
+COMPOUND_CLIP = r"C:\Users\mspedden\Videos\rekeyed 1 orange pseudowords.mp4"
+ORIGINALS_DIR = r"C:\Users\mspedden\Videos\selected_blue"
+OUTPUT_DIR = r"C:\Users\mspedden\Videos\re key 1 pseudo orange"
 
 def get_duration(filepath):
-    result = subprocess.run([
-        FFPROBE, "-v", "quiet", "-print_format", "json",
-        "-show_streams", "-select_streams", "v:0", str(filepath)
-    ], capture_output=True, text=True)
-    info = json.loads(result.stdout)
-    return float(info["streams"][0]["duration"])
-
-print("Reading clip durations...")
-durations = []
-for clip in orig_clips:
-    d = get_duration(clip)
-    durations.append(d)
-    print(f"  {clip.name}: {d:.3f}s")
-
-# ── Split compound clip ───────────────────────────────────────────────────────
-
-print(f"\nSplitting compound clip...")
-current_time = 0.0
-
-for i, (clip, duration) in enumerate(zip(orig_clips, durations)):
-    output_file = output_path / (clip.stem + ".mp4")
-
     cmd = [
-        FFMPEG,
-        "-y",
-        "-i", COMPOUND_CLIP,
-        "-ss", str(current_time),      # Start time
-        "-t", str(duration),           # Duration
-        "-c:v", "libx264",
-        "-preset", "ultrafast",
-        "-crf", "18",
-        "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-b:a", "320k",
-        "-movflags", "+faststart",
-        str(output_file)
+        "ffprobe", "-v", "quiet",
+        "-print_format", "json",
+        "-show_streams",
+        filepath
     ]
-
-    print(f"[{i+1}/{len(orig_clips)}] {clip.name} ({current_time:.3f}s → {current_time+duration:.3f}s)")
-
     result = subprocess.run(cmd, capture_output=True, text=True)
+    data = json.loads(result.stdout)
+    for stream in data["streams"]:
+        if stream["codec_type"] == "video":
+            return float(stream["duration"])
+    return None
 
-    if result.returncode != 0:
-        print(f"  ❌ ERROR: {result.stderr[-1000:]}")
-    else:
-        print(f"  ✅ Done")
+def split_video(compound, originals_dir, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
 
-    current_time += duration
+    extensions = (".mp4", ".mov", ".avi", ".mkv", ".mxf")
+    originals = sorted([
+        f for f in Path(originals_dir).iterdir()
+        if f.suffix.lower() in extensions
+    ])
 
-print(f"\nAll done! Files saved to: {OUTPUT_DIR}")
+    if not originals:
+        print(f"No video files found in {originals_dir}")
+        return
+
+    print(f"Found {len(originals)} original clips")
+    print(f"Getting durations...")
+
+    durations = []
+    for clip in originals:
+        dur = get_duration(str(clip))
+        if dur is None:
+            print(f"WARNING: Could not get duration for {clip.name}, skipping")
+            continue
+        durations.append((clip.name, dur))
+        print(f"  {clip.name}: {dur:.3f}s")
+
+    print(f"\nSplitting compound clip...")
+    current_time = 0.0
+
+    for i, (name, duration) in enumerate(durations):
+        output_path = os.path.join(output_dir, name)
+
+        cmd = [
+            "ffmpeg",
+            "-ss", str(current_time),
+            "-i", compound,
+            "-t", str(duration),
+            "-c:v", "mpeg4",        # Uses built-in mpeg4 encoder, no extra install needed
+            "-q:v", "2",            # High quality (1=best, 5=default)
+            "-c:a", "aac",
+            "-af", "aresample=async=1",
+            output_path,
+            "-y"
+        ]
+
+        print(f"  [{i+1}/{len(durations)}] {name} (start: {current_time:.3f}s, duration: {duration:.3f}s)")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        if result.returncode != 0:
+            print(f"  ERROR: {result.stderr[-300:]}")
+        else:
+            print(f"  ✓ Done")
+
+        current_time += duration
+
+    print(f"\nAll done! Files saved to: {output_dir}")
+    print(f"Total clips created: {len(durations)}")
+
+if __name__ == "__main__":
+    split_video(COMPOUND_CLIP, ORIGINALS_DIR, OUTPUT_DIR)

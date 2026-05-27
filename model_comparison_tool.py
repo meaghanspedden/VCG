@@ -375,6 +375,8 @@ def main():
     print("=" * 60)
     print("  Model Comparison Tool")
     print("=" * 60)
+    print(f"  Config   : {os.path.join(get_base_dir(), 'config.txt')}")
+    print(f"  Exists   : {os.path.exists(os.path.join(get_base_dir(), 'config.txt'))}")
     print(f"  Model 1  : {args.model1}")
     print(f"  Model 2  : {args.model2}")
     print(f"  Decisions: {DECISIONS_FILE}")

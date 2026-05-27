@@ -18,10 +18,10 @@ from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify, send_file, Response
 
 # ===== USER SETTINGS =====
-CLIPPED_DIR    = r"C:\Users\mspedden\Videos\false_signs_green_model2"
-ORIGINALS_DIR  = r"C:\Users\mspedden\Videos\false_signs_green_model2"
+CLIPPED_DIR    = r"C:\Users\mspedden\Videos\final\Real signs\stimuli_orange"
+ORIGINALS_DIR = r"C:\Users\mspedden\Videos\final\Real signs\stimuli_orange"
 PLOTS_DIR      = r"C:\Users\mspedden\Videos\false_signs_green_model2"
-DECISIONS_FILE = os.path.join(CLIPPED_DIR, "review_decisions.csv")
+DECISIONS_FILE = os.path.join(CLIPPED_DIR, "review_decisions_final5.csv")
 FFMPEG         = r"C:\ffmpeg-8.0.1-full_build\bin\ffmpeg.exe"
 PAD_SECONDS    = 0.3
 EXTS           = (".mp4", ".mov", ".m4v", ".avi")
@@ -261,7 +261,7 @@ body { font-family: 'JetBrains Mono', monospace; background: var(--bg);
     </div>
 
     <div id="media">
-      <video id="video-player" controls autoplay loop muted>
+      <video id="video-player" controls autoplay muted>
         <source id="video-src" src="" type="video/mp4">
       </video>
       <!-- reclip mode: show server-rendered frames -->

@@ -1,0 +1,83 @@
+import subprocess
+import json
+from pathlib import Path
+
+# ── Configuration ────────────────────────────────────────────────────────────
+
+FFMPEG  = r"C:\Users\mspedden\Documents\ffmpeg-2026-05-06-git-f2e5eff3ff-full_build\bin\ffmpeg.exe"
+FFPROBE = r"C:\Users\mspedden\Documents\ffmpeg-2026-05-06-git-f2e5eff3ff-full_build\bin\ffprobe.exe"
+
+# The compound clip to split
+COMPOUND_CLIP = r"D:\selected\practice.mp4"
+
+# Original individual clips in the correct order — used to get durations
+ORIG_CLIPS_ORDERED = [
+    r"D:\selected\practice split\apple.mp4",
+    r"D:\selected\practice split\aeroplane.mp4",
+    r"D:\selected\practice split\aunt.mp4",
+]
+
+# Where to save the split clips (same folder, with _split suffix to avoid overwriting)
+OUTPUT_DIR = r"D:\selected\practice split"
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
+
+output_path = Path(OUTPUT_DIR)
+output_path.mkdir(parents=True, exist_ok=True)
+
+# ── Get duration of each original clip ───────────────────────────────────────
+
+def get_duration(filepath):
+    result = subprocess.run([
+        FFPROBE, "-v", "quiet", "-print_format", "json",
+        "-show_streams", "-select_streams", "v:0", str(filepath)
+    ], capture_output=True, text=True)
+    info = json.loads(result.stdout)
+    return float(info["streams"][0]["duration"])
+
+print("Reading clip durations...")
+durations = []
+for clip_path in ORIG_CLIPS_ORDERED:
+    d = get_duration(clip_path)
+    durations.append(d)
+    print(f"  {Path(clip_path).name}: {d:.3f}s")
+
+print(f"\n  Total: {sum(durations):.3f}s")
+
+# ── Split compound clip ───────────────────────────────────────────────────────
+
+print(f"\nSplitting: {COMPOUND_CLIP}")
+current_time = 0.0
+
+for i, (clip_path, duration) in enumerate(zip(ORIG_CLIPS_ORDERED, durations)):
+    clip_name = Path(clip_path).stem
+    output_file = output_path / (clip_name + "_split.mp4")
+
+    cmd = [
+        FFMPEG,
+        "-y",
+        "-i", COMPOUND_CLIP,
+        "-ss", str(current_time),
+        "-t", str(duration),
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-crf", "18",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-b:a", "320k",
+        "-movflags", "+faststart",
+        str(output_file)
+    ]
+
+    print(f"[{i+1}/{len(ORIG_CLIPS_ORDERED)}] {clip_name} ({current_time:.3f}s → {current_time+duration:.3f}s)")
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    if result.returncode != 0:
+        print(f"  ERROR: {result.stderr[-1000:]}")
+    else:
+        print(f"  Done -> {output_file}")
+
+    current_time += duration
+
+print(f"\nAll done! Files saved to: {OUTPUT_DIR}")

@@ -2,5 +2,5 @@
 # Edit the paths below to point to your video folders.
 # Save this file then restart the script.
 
-model1 = C:\Users\mspedden\Videos\final\real_words_model 1
-model2 = C:\Users\mspedden\Videos\final\real_words_model2
+model1 = C:\Users\mspedden\Videos\final\pseudo signs model1 all peri
+model2 = C:\Users\mspedden\Videos\final\pseudosigns_model2_orange

@@ -1,7 +1,6 @@
-function word_experiment_withpractice_v4()
-% WORD_EXPERIMENT_WITHPRACTICE_V3
-% PsychToolbox audiovisual word experiment for HEARING participants.
-% Mirrors sign_language_experiment_withpractice_v3 structure.
+function sign_language_experiment_withpractice_v4()
+% SIGN_LANGUAGE_EXPERIMENT_WITHPRACTICE_V3
+% PsychToolbox sign language video experiment for DEAF participants.
 %
 % PRACTICE:
 %   A) REAL/GREEN instructions + 1 blocked real practice trial (SPACE)
@@ -11,10 +10,6 @@ function word_experiment_withpractice_v4()
 % MAIN:
 %   All remaining REAL + PSEUDO trials, randomized
 %
-% Audio: each <n>.mp4 has a matching <n>.wav in the same folder.
-%        Movie audio is muted; WAV is played via PsychPortAudio,
-%        scheduled to start at exactly the first video frame flip.
-%
 % TRIGGER CODES (parallel port):
 %   1 = background onset (baseline window start)
 %   2 = first video frame (stimulus onset)
@@ -22,10 +17,9 @@ function word_experiment_withpractice_v4()
 %
 % ESCAPE exits at any time.
 %
-% CHANGES FROM v1:
+% CHANGES FROM v2:
 %   - labMode flag: set true for MEG lab (screen 1, SkipSyncTests=1),
 %     false for development (screen 2, SkipSyncTests=0)
-%   - Audio fallback: tries 48000 Hz first, then 44100, then 22050
 %   - Movie preloaded DURING background period (preloadSecs=1) so GStreamer
 %     startup cost is hidden inside preVideoDuration, not added on top
 %   - Question mark flipped immediately inside playback loop when
@@ -39,31 +33,33 @@ function word_experiment_withpractice_v4()
 % Set labMode = true when running in the MEG lab.
 % Set labMode = false when testing at your desk.
 labMode = false;
-
+%screenNumber=0; %laptop only
 screenNumber  = 1 * labMode + 2 * ~labMode;   % 1 = projector, 2 = dev monitor
-skipSyncTests = 2 ;%* labMode + 0 * ~labMode;   % 1 = lab (Intel GPU), 0 = strict
+skipSyncTests = 2; %* labMode + 0 * ~labMode;   % 1 = lab (Intel GPU), 0 = strict
 
 
 %% ===== EXPERIMENT PARAMETERS =====
 
 % Paths
-realVideoFolder      = 'C:\Users\mspedden\Videos\segments_real_words';
-realPracticeFolder   = 'C:\Users\mspedden\Videos\segments_real_words\practice';
-pseudoVideoFolder    = 'C:\Users\mspedden\Videos\pseudo_words_segements';
-pseudoPracticeFolder = 'C:\Users\mspedden\Videos\pseudo_words_segements\practice';
+realVideoFolder      = 'C:\Users\mspedden\Videos\final\Real signs\stimuli_orange';
+realPracticeFolder   = 'C:\Users\mspedden\Videos\final\Real signs\stimuli_orange\practice';
+pseudoVideoFolder    = 'C:\Users\mspedden\Videos\final\Pseudosigns\pseudosigns_stimuli_blue';
+pseudoPracticeFolder = 'C:\Users\mspedden\Videos\final\Pseudosigns\pseudosigns_stimuli_blue\practice';
 dataFolder           = 'C:\Users\mspedden\Documents\experiment_data';
 
 % Background colours (normalised 0-1 for PTB)
-realBgColor   = [10, 63, 26]  / 255;   % Dark green
-pseudoBgColor = [0,  26, 102] / 255;   % Deep blue
-neutralGray   = [40, 40, 40];
+realBgColor   = [204, 119, 82]  / 255;    % orange
+pseudoBgColor = [170, 190, 222] / 255;  % periwinkle
+neutralGray   = [180, 180, 180];
+textGray      = [40, 40, 40];    % dark grey for text (readable on light grey background and condition colours)
 
 % Practice structure
-nBlockedPracticePerCond = 1;
-nMixedPracticePerCond   = 5;
+nPracticePerCond        = 20;
+nBlockedPracticePerCond = 5;
+nMixedPracticePerCond   = nPracticePerCond - nBlockedPracticePerCond;
 
 % PRACTICE timing (slower)
-practice_preVideoDuration = 1.0;
+practice_preVideoDuration = 1;
 practice_questionDuration = 1.0;
 practice_responseDuration = 2.0;
 
@@ -75,14 +71,11 @@ main_responseDuration = 1.0;
 % Text settings
 questionText      = '?';
 questionTextSize  = 400;
-questionTextColor = [255 255 255];
+questionTextColor = textGray;
 instructionTextSize = 62;
 instructionWrapAt   = 62;
 instructionVSpacing = 1.25;
 itiTextSize = 44;
-
-% Audio
-nrchannels = 1;
 
 % Parallel port
 portAddress      = hex2dec('3FF8');   % confirmed on lab PC
@@ -93,44 +86,46 @@ TRIG_VIDEO    = 2;   % first video frame
 TRIG_QUESTION = 4;   % question mark onset
 
 % Instructions
+% NOTE: These instructions are intentionally detailed for piloting.
+% In the final MEG session, participants will be trained outside the MSR
+% in BSL by the experimenter — these screens will serve as a brief reminder
+% only. Reduce text here when moving to real data collection.
 realInstructionText1 = [ ...
-    'When the background is green, you will hear and see a real word.\n\n' ...
+    'When the background is orange, you will see a video of a sign.\n\n' ...
     'Press SPACE to continue.' ];
 
 realInstructionText2 = [ ...
     'When ? appears:\n\n' ...
-    'Say one related word out loud.\n\n' ...
-    'e.g. DOG  -->  CAT or ANIMAL\n\n' ...
+    'Sign just one related sign.\n\n' ...
+    'e.g. DOG -->  CAT or ANIMAL\n\n' ...
     'Press SPACE to continue.' ];
 
 realInstructionText3 = [ ...
-    'Say the FIRST word that comes to mind.\n\n' ...
+    'Sign the FIRST thing that comes to mind.\n\n' ...
     'Don''t think too hard.\n\n' ...
-    'If you miss it, don''t respond,\n' ...
+    'Sign only — do not mouth the word.\n\n' ...
+    'If you don''t know a sign, don''t respond,\n' ...
     'the next trial will begin automatically.\n\n' ...
     'Press SPACE to start.' ];
 
 pseudoInstructionText1 = [ ...
-    'When the background is blue, you will hear and see a made-up word.\n\n' ...
+    'When the background is blue, you will see a video of a movement that does not mean anything.\n\n' ...
     'Press SPACE to continue.' ];
 
 pseudoInstructionText2 = [ ...
     'When ? appears:\n\n' ...
-    'Repeat the word out loud as best you can.\n\n' ...
-    'If you miss it, don''t respond,\n' ...
+    'Mirror the movement — copy exactly what you see.\n\n' ...
+    'If you miss the movement, don''t respond,\n' ...
     'the next trial will begin automatically.\n\n' ...
     'Press SPACE to start.' ];
 
 mixedPracticeText_top = [ ...
     'Mixed practice\n\n' ...
-    'Trials will now appear in random order.\n' ...
+    'The trials will now appear in random order.\n' ...
     'They will run continuously without stopping between trials.\n\n' ];
 
-mixedPracticeText_green = 'GREEN background: say a related word.';
-mixedPracticeText_blue  = 'BLUE background: repeat the word.';
-
 mixedPracticeText_bottom = [ ...
-    '\n\nDon''t rush - wait until the word has finished.\n\n' ...
+    '\n\nDon''t rush - wait until the video is finished.\n\n' ...
     'A + will appear between trials — wait for the background to change.\n\n' ...
     'Press SPACE to continue.' ];
 
@@ -156,7 +151,7 @@ try
     participantID = answer{1};
     sessionNum    = answer{2};
     timestamp     = datestr(now, 'yyyy-mm-dd_HH-MM-SS');
-    dataFilename  = fullfile(dataFolder, sprintf('sub-%s_ses-%s_%s_words.csv', ...
+    dataFilename  = fullfile(dataFolder, sprintf('sub-%s_ses-%s_%s.csv', ...
         participantID, sessionNum, timestamp));
 
     % Gather video files
@@ -316,15 +311,16 @@ try
         nTrials, nActualPractice, nTrials - nActualPractice);
 
     %% ===== PSYCHTOOLBOX SETUP =====
-    InitializePsychSound(1);
-PsychDefaultSetup(2);   % AFTER preferences
+    
+    PsychDefaultSetup(2);
 
-Screen('Preference', 'SkipSyncTests', 1);
-Screen('Preference', 'VisualDebugLevel', 0);
-Screen('Preference', 'SuppressAllWarnings', 1);
-Screen('Preference', 'Verbosity', 0);
+    Screen('Preference', 'SkipSyncTests',        skipSyncTests);
+    Screen('Preference', 'VisualDebugLevel',     1);
+    Screen('Preference', 'SuppressAllWarnings',  1);
+    Screen('Preference', 'TextEncodingLocale',   'UTF-8');
+    Screen('Preference', 'TextRenderer',         1);
 
-    [window, windowRect] = Screen('OpenWindow', screenNumber, neutralGray);
+    [window, windowRect] = Screen('OpenWindow', screenNumber, neutralGray); %#ok<ASGLU>
     Screen('TextFont',  window, 'Arial');
     Screen('TextStyle', window, 0);
 
@@ -332,24 +328,6 @@ Screen('Preference', 'Verbosity', 0);
     fps = 1/ifi;
     fprintf('Screen %d: %dx%d @ %.2f Hz  (labMode=%d)\n', ...
         screenNumber, windowRect(3), windowRect(4), fps, labMode);
-
-    % Audio: try 48000 first (widest Windows driver support), fall back
-    pahandle = [];
-    targetFs = 48000;
-    for tryFs = [48000, 44100, 22050]
-        try
-            pahandle = PsychPortAudio('Open', [], 1, 1, tryFs, nrchannels);
-            targetFs = tryFs;
-            fprintf('Audio opened at %d Hz\n', targetFs);
-            break;
-        catch audioErr
-            fprintf('Audio at %d Hz failed (%s), trying next...\n', tryFs, audioErr.message);
-        end
-    end
-    if isempty(pahandle)
-        error('Could not open audio at any sample rate (tried 48000, 44100, 22050).');
-    end
-    PsychPortAudio('Volume', pahandle, 1.0);
 
     % Parallel port — gracefully disabled if unavailable
     triggerOK = false;
@@ -374,8 +352,8 @@ Screen('Preference', 'Verbosity', 0);
 
     %% ===== DATA LOGGING =====
     fid = fopen(dataFilename, 'w');
-    fprintf(fid, ['trial,trialType,practiceStage,condition,videoFile,audioFile,' ...
-        'bgPreStart,firstVideoFrame,audioStartTime,videoEnd,' ...
+    fprintf(fid, ['trial,trialType,practiceStage,condition,videoFile,' ...
+        'bgPreStart,firstVideoFrame,videoEnd,' ...
         'questionStart,questionEnd,responseStart,responseEnd\n']);
 
     %% ===== RUN EXPERIMENT =====
@@ -410,22 +388,9 @@ Screen('Preference', 'Verbosity', 0);
                     && strcmp(trials(trial-1).practiceStage, 'PSEUDO_BLOCK')
                 Screen('FillRect', window, neutralGray);
                 Screen('TextSize', window, instructionTextSize);
-                lineH = instructionTextSize * instructionVSpacing;
-                screenH = windowRect(4);
-                nLines   = 13;
-                startY   = (screenH - nLines * lineH) / 2;
-                % Draw top section (white)
-                [~, topY] = DrawFormattedText(window, mixedPracticeText_top, 'center', startY, [255 255 255], ...
-                    instructionWrapAt, [], [], instructionVSpacing);
-                % Draw GREEN line in dark green
-                [~, greenY] = DrawFormattedText(window, mixedPracticeText_green, 'center', topY + lineH, [0 140 50], ...
-                    instructionWrapAt, [], [], instructionVSpacing);
-                % Draw BLUE line in dark blue
-                [~, blueY] = DrawFormattedText(window, mixedPracticeText_blue, 'center', greenY + lineH, [30 80 200], ...
-                    instructionWrapAt, [], [], instructionVSpacing);
-                % Draw bottom section (white)
-                DrawFormattedText(window, mixedPracticeText_bottom, 'center', blueY + lineH, [255 255 255], ...
-                    instructionWrapAt, [], [], instructionVSpacing);
+                % Draw top + bottom sections centred on screen
+                DrawFormattedText(window, [mixedPracticeText_top, mixedPracticeText_bottom], ...
+                    'center', 'center', textGray, instructionWrapAt, [], [], instructionVSpacing);
                 Screen('Flip', window);
                 waitForSpaceOrEscape();
                 WaitSecs(0.2);
@@ -438,7 +403,7 @@ Screen('Preference', 'Verbosity', 0);
             practiceComplete = true;
             Screen('FillRect', window, neutralGray);
             Screen('TextSize', window, instructionTextSize);
-            DrawFormattedText(window, mainStartText, 'center', 'center', [255 255 255], ...
+            DrawFormattedText(window, mainStartText, 'center', 'center', textGray, ...
                 instructionWrapAt, [], [], instructionVSpacing);
             Screen('Flip', window);
             waitForSpaceOrEscape();
@@ -453,7 +418,7 @@ Screen('Preference', 'Verbosity', 0);
             Screen('FillRect', window, neutralGray);
             Screen('TextSize', window, instructionTextSize);
             DrawFormattedText(window, 'Halfway there — take a break!\n\nPress SPACE when you are ready to continue.', ...
-                'center', 'center', [255 255 255], instructionWrapAt, [], [], instructionVSpacing);
+                'center', 'center', textGray, instructionWrapAt, [], [], instructionVSpacing);
             Screen('Flip', window);
             waitForSpaceOrEscape();
             WaitSecs(0.2);
@@ -476,23 +441,6 @@ Screen('Preference', 'Verbosity', 0);
         fprintf('\n=== Trial %d/%d (%s) | %s | %s ===\n', ...
             trial, nTrials, trialType, trials(trial).practiceStage, trials(trial).condition);
 
-        %% Prepare audio
-        [audioFolder, audioBase, ~] = fileparts(trials(trial).videoFile);
-        audioFile = fullfile(audioFolder, [audioBase '.wav']);
-
-        PsychPortAudio('Stop', pahandle, 1);
-        haveAudio = false;
-
-        if exist(audioFile, 'file')
-            [y, fs] = audioread(audioFile);
-            if size(y,2) > 1, y = mean(y,2); end
-            if fs ~= targetFs, y = resample(y, targetFs, fs); end
-            PsychPortAudio('FillBuffer', pahandle, y');
-            haveAudio = true;
-        else
-            warning('Missing WAV: %s', audioFile);
-        end
-
         %% PHASE 1: Pre-video background + preload movie
         bgColor255 = trials(trial).bgColor * 255;
         Screen('FillRect', window, bgColor255);
@@ -512,13 +460,11 @@ Screen('Preference', 'Verbosity', 0);
 
         waitWithEscapeUntil(bgPreStart + preVideoDuration);
 
-        %% PHASE 2: Play video (muted) + sync audio to first frame
-        Screen('PlayMovie', moviePtr, 1, 0, 0);
+        %% PHASE 2: Play video
+        Screen('PlayMovie', moviePtr, 1);
 
         frameCount     = 0;
         firstFrameTime = nan;
-        audioStartTime = nan;
-        audioStarted   = false;
         questionStart  = nan;
         videoEnd       = nan;
 
@@ -530,15 +476,13 @@ Screen('Preference', 'Verbosity', 0);
                     try, Screen('CloseMovie', moviePtr);  catch, end
                     moviePtr = [];
                 end
-                PsychPortAudio('Stop', pahandle, 1);
                 error('Experiment terminated by user (ESC).');
             end
 
             tex = Screen('GetMovieImage', window, moviePtr);
 
             if tex <= 0
-                % Movie finished — flip question mark immediately here,
-                % no extra frame of delay
+                % Movie finished — flip question mark immediately here
                 Screen('FillRect', window, bgColor255);
                 Screen('TextSize', window, questionTextSize);
                 DrawFormattedText(window, questionText, 'center', 'center', questionTextColor);
@@ -555,11 +499,6 @@ Screen('Preference', 'Verbosity', 0);
             if frameCount == 0
                 firstFrameTime = vbl;
                 sendTrigger(TRIG_VIDEO);
-                if haveAudio && ~audioStarted
-                    PsychPortAudio('Start', pahandle, 1, firstFrameTime, 0);
-                    audioStartTime = firstFrameTime;
-                    audioStarted   = true;
-                end
                 fprintf('  [TIMING] First frame at %.3f (bg delay: %.1f ms)\n', ...
                     firstFrameTime, (firstFrameTime - bgPreStart)*1000);
             end
@@ -567,8 +506,6 @@ Screen('Preference', 'Verbosity', 0);
             frameCount = frameCount + 1;
             Screen('Close', tex);
         end
-
-        PsychPortAudio('Stop', pahandle, 1);
 
         % Explicit inline close
         if ~isempty(moviePtr) && moviePtr > 0
@@ -590,10 +527,10 @@ Screen('Preference', 'Verbosity', 0);
         responseEnd = GetSecs();
 
         %% Save trial data
-        fprintf(fid, '%d,%s,%s,%s,%s,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n', ...
+        fprintf(fid, '%d,%s,%s,%s,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n', ...
             trial, trialType, trials(trial).practiceStage, trials(trial).condition, ...
-            trials(trial).videoFile, audioFile, ...
-            bgPreStart, firstFrameTime, audioStartTime, videoEnd, ...
+            trials(trial).videoFile, ...
+            bgPreStart, firstFrameTime, videoEnd, ...
             questionStart, questionEnd, responseStart, responseEnd);
 
         %% ITI
@@ -608,7 +545,7 @@ Screen('Preference', 'Verbosity', 0);
                  strcmp(trials(trial).practiceStage,'PSEUDO_BLOCK'))
             Screen('FillRect', window, neutralGray);
             Screen('TextSize', window, itiTextSize);
-            DrawFormattedText(window, 'Press SPACE to continue\n\n+', 'center', 'center', [255 255 255], ...
+            DrawFormattedText(window, 'Press SPACE to continue\n\n+', 'center', 'center', textGray, ...
                 instructionWrapAt, [], [], instructionVSpacing);
             Screen('Flip', window);
             waitForSpaceOrEscape();
@@ -616,7 +553,7 @@ Screen('Preference', 'Verbosity', 0);
         else
             Screen('FillRect', window, nextBgColor255);
             Screen('TextSize', window, 200);
-            DrawFormattedText(window, '+', 'center', 'center', [255 255 255]);
+            DrawFormattedText(window, '+', 'center', 'center', textGray);
             Screen('Flip', window);
             waitWithEscapeSeconds(0.5);
             Screen('TextSize', window, questionTextSize);
@@ -626,18 +563,17 @@ Screen('Preference', 'Verbosity', 0);
 
     %% ===== CLEANUP =====
     fclose(fid);
-    PsychPortAudio('Close', pahandle);
     Screen('FillRect', window, neutralGray);
     Screen('TextSize', window, 44);
     DrawFormattedText(window, 'Experiment complete!\n\nThank you for participating.', ...
-        'center', 'center', [255 255 255], instructionWrapAt, [], [], instructionVSpacing);
+        'center', 'center', textGray, instructionWrapAt, [], [], instructionVSpacing);
     Screen('Flip', window);
     WaitSecs(2);
     sca;
     ShowCursor;
     fprintf('\n=== EXPERIMENT COMPLETE ===\n');
     fprintf('Data saved to: %s\n', dataFilename);
-    fprintf('Total trials: %d\n', nTrials);
+    fprintf('Total trials completed: %d/%d\n', trial, nTrials);
 
 catch ME
     if exist('moviePtr','var') && ~isempty(moviePtr) && moviePtr > 0
@@ -648,7 +584,6 @@ catch ME
     ShowCursor;
     fprintf('\n=== ERROR ===\n%s\n', ME.message);
     try, if exist('fid','var') && fid > 0, fclose(fid); end, catch, end
-    try, if exist('pahandle','var') && ~isempty(pahandle), PsychPortAudio('Close', pahandle); end, catch, end
     rethrow(ME);
 end
 
@@ -668,7 +603,7 @@ end
     function showInstruction(bgColor01, txt)
         Screen('FillRect', window, bgColor01 * 255);
         Screen('TextSize', window, instructionTextSize);
-        DrawFormattedText(window, txt, 'center', 'center', [255 255 255], ...
+        DrawFormattedText(window, txt, 'center', 'center', textGray, ...
             instructionWrapAt, [], [], instructionVSpacing);
         Screen('Flip', window);
         waitForSpaceOrEscape();

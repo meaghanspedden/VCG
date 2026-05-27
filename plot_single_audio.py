@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # ===== USER SETTINGS =====
-VIDEO_PATH = r"C:\Users\mspedden\Videos\final\Pseudowords\final selected pseudowords_1peri2orange\olo.mp4"
+VIDEO_PATH = r"C:\Users\mspedden\Videos\final\Real words\final selected realwords_1peri2orange\chips.mov"
 FFMPEG     = r"C:\Users\mspedden\Documents\ffmpeg-2026-05-06-git-f2e5eff3ff-full_build\bin\ffmpeg.exe"
 TARGET_ONSET = 0.5
 # =========================
