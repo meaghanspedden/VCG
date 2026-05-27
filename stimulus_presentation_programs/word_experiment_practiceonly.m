@@ -1,388 +1,631 @@
-%% spine_emg_coherence_comparison.m
-clear all; close all; clc;
+function word_experiment_practiceonly()
+% WORD_EXPERIMENT_PRACTICEONLY
+% Practice-only version of word_experiment_withpractice_v4.
+% Runs ONLY the three practice stages (REAL_BLOCK, PSEUDO_BLOCK, MIXED).
+% No main experiment trials are built or run.
+%
+% PRACTICE:
+%   A) REAL/BLUE instructions + 1 blocked real practice trial (SPACE)
+%   B) PSEUDO/ORANGE instructions + 1 blocked pseudo practice trial (SPACE)
+%   C) MIXED practice: remaining real + pseudo (randomized, no SPACE)
+%
+% All other behaviour (timing, audio, triggers, etc.) is identical to v4.
 
-%% =========================================================================
-%  USER CONFIG
-%% =========================================================================
-fieldtrip_path = 'C:\Users\mspedden\Documents\fieldtrip';
-spm_path       = 'C:\Users\mspedden\Documents\spm';
-bsc_path       = 'C:\Users\mspedden\Documents\brainspineconnectivity\source';
-data_root      = 'C:\spinecoh_data';
-save_dir       = 'C:\Users\mspedden\Documents\brainspine_savetest\lf_comparison';
 
-lf_configs(1).name    = 'BEM';
-lf_configs(1).lf_path = 'C:\Leadfields meshes\leadfield_experimental_bem_experimental.mat';
-lf_configs(1).lf_var  = 'leadfield_cord';
+%% ===== LAB CONFIG =====
+labMode = false;
 
-lf_configs(2).name    = 'BSLaw';
-lf_configs(2).lf_path = 'C:\Leadfields meshes\leadfield_experimental_bslaw_experimental.mat';
-lf_configs(2).lf_var  = 'leadfield_bs';
+screenNumber  = 1 * labMode + 2 * ~labMode;
+skipSyncTests = 2;
 
-geomfile = 'C:\Leadfields meshes\geometries_experimental.mat';
 
-smooth_vals    = [0, 1];
-lambda_vals    = [1, 5, 10];
-fwhm_mm        = 20;
-radius_mm      = 3 * (fwhm_mm / 2.355);
-sub            = 'OP00212';
-fband          = [10 35];
-numpermutation = 500;
-roi_idx        = 25:30;
-rng(1);
+%% ===== EXPERIMENT PARAMETERS =====
 
-%% =========================================================================
-%  SETUP
-%% =========================================================================
-addpath(bsc_path); addpath(spm_path);
-spm('defaults','EEG');
-addpath(fieldtrip_path);
-ft_defaults;
+realVideoFolder      = 'C:\Users\mspedden\Videos\final\Real words\stimuli_blue\h264';
+realPracticeFolder   = 'C:\Users\mspedden\Videos\final\Real words\stimuli_blue\practice\h264';
+pseudoVideoFolder    = 'C:\Users\mspedden\Videos\final\Pseudowords\final_orange';
+pseudoPracticeFolder = 'C:\Users\mspedden\Videos\final\Pseudowords\final_orange\practice';
+dataFolder           = 'C:\Users\mspedden\Documents\experiment_data';
 
-if ~exist(save_dir,'dir'), mkdir(save_dir); end
-fig_dir = fullfile(save_dir, 'figures');
-if ~exist(fig_dir,'dir'), mkdir(fig_dir); end
+realBgColor   = [170, 190, 222] / 255;
+pseudoBgColor = [204, 119, 82]  / 255;
+neutralGray   = [180, 180, 180];
 
-%% =========================================================================
-%  LOAD GEOMETRY — shared source space and meshes
-%% =========================================================================
-fprintf('Loading geometry...\n');
-geom_data    = load(geomfile);
-sources_cent = geom_data.sources_cent;
-mesh_torso   = geom_data.mesh_torso;
+nBlockedPracticePerCond = 1;
+nMixedPracticePerCond   = 5;
 
-cord_pos      = sources_cent.pos(:,2);
-nsourcepoints = size(sources_cent.pos, 1);
-fprintf('  Source space: %d points, y range %.1f to %.1f mm\n', ...
-    nsourcepoints, min(cord_pos), max(cord_pos));
+practice_preVideoDuration = 1.0;
+practice_questionDuration = 1.0;
+practice_responseDuration = 2.0;
 
-%% =========================================================================
-%  BUILD SMOOTHER ONCE
-%% =========================================================================
-fprintf('Building Gaussian smoother (FWHM=%d mm)...\n', fwhm_mm);
-Wsm = make_gaussian_smoother(sources_cent.pos, fwhm_mm, radius_mm);
-nnz_per_row = full(sum(Wsm > 0, 2));
-selfw       = full(diag(Wsm));
-fprintf('  Neighbours/row: median %.1f (min %d, max %d)\n', ...
-    median(nnz_per_row), min(nnz_per_row), max(nnz_per_row));
-fprintf('  Self-weight:    median %.3f (min %.3f, max %.3f)\n\n', ...
-    median(selfw), min(selfw), max(selfw));
+questionText         = '?';
+questionTextSize     = 400;
+questionTextColor    = [60, 60, 60];
+instructionTextColor = [60, 60, 60];
+instructionTextSize  = 62;
+instructionWrapAt    = 62;
+instructionVSpacing  = 1.25;
+itiTextSize          = 44;
 
-%% =========================================================================
-%  LOAD DATA ONCE
-%% =========================================================================
-fprintf('=== Loading and preprocessing data ===\n');
-datafile = fullfile(data_root, ['sub-' sub], 'ses-001', 'meg', ...
-    'pmergedoe1000mspddfflo45hi45hfcstatic_001_array1.mat');
+nrchannels = 1;
 
-D       = spm_eeg_load(datafile);
-grad_mm = D.sensors('MEG');
-ftdat   = spm2fieldtrip(D);
+portAddress     = hex2dec('3FF8');
+triggerDuration = 0.005;
 
-badchans = D.chanlabels(D.badchannels);
-cfg = []; cfg.channel = setdiff(ftdat.label, badchans);
-ftdat = ft_selectdata(cfg, ftdat);
+TRIG_BG       = 1;
+TRIG_VIDEO    = 2;
+TRIG_QUESTION = 4;
 
-% Rectify EMG
-cfg = []; cfg.rectify = 'yes'; cfg.channel = 'EXG1';
-ftdatr = ft_preprocessing(cfg, ftdat);
-for k = 1:length(ftdat.trial)
-    ftdat.trial{k}(end,:) = ftdatr.trial{k};
-end
+realInstructionText1 = [ ...
+    'When the background is blue, you will hear and see a real word.\n\n' ...
+    'Press SPACE to continue.' ];
 
-fprintf('  Data loaded: %d trials\n', numel(ftdat.trial));
+realInstructionText2 = [ ...
+    'When ? appears:\n\n' ...
+    'Say one related word out loud.\n\n' ...
+    'e.g. DOG  -->  CAT or ANIMAL\n\n' ...
+    'Press SPACE to continue.' ];
 
-%% =========================================================================
-%  VOLUME CONDUCTOR (shared)
-%% =========================================================================
-mesh_wm.unit = 'mm';
-cfg = []; cfg.method = 'infinite'; cfg.siunits = 1;
-cfg.grad = grad_mm; cfg.conductivity = 1;
-dummyvol = ft_prepare_headmodel(cfg, mesh_torso);
+realInstructionText3 = [ ...
+    'Say the FIRST word that comes to mind.\n\n' ...
+    'Don''t think too hard.\n\n' ...
+    'If you miss it, don''t respond,\n' ...
+    'the next trial will begin automatically.\n\n' ...
+    'Press SPACE to start.' ];
 
-%% =========================================================================
-%  MAIN LOOP
-%% =========================================================================
-n_lf     = numel(lf_configs);
-n_smooth = numel(smooth_vals);
-n_lambda = numel(lambda_vals);
-n_total  = n_lf * n_smooth * n_lambda;
+pseudoInstructionText1 = [ ...
+    'When the background is orange, you will hear and see a made-up word.\n\n' ...
+    'Press SPACE to continue.' ];
 
-results  = cell(n_total, 1);
-cond_num = 0;
+pseudoInstructionText2 = [ ...
+    'When ? appears:\n\n' ...
+    'Repeat the word out loud as best you can.\n\n' ...
+    'If you miss it, don''t respond,\n' ...
+    'the next trial will begin automatically.\n\n' ...
+    'Press SPACE to start.' ];
 
-for li = 1:n_lf
-    lfc = lf_configs(li);
-    fprintf('\n=== Leadfield: %s ===\n', lfc.name);
+mixedPracticeText_top    = [ ...
+    'Mixed practice\n\n' ...
+    'Trials will now appear in random order.\n' ...
+    'They will run continuously without stopping between trials.\n\n' ];
+mixedPracticeText_green  = 'BLUE background: say a related word.';
+mixedPracticeText_blue   = 'ORANGE background: repeat the word.';
+mixedPracticeText_bottom = [ ...
+    '\n\nDon''t rush - wait until the word has finished.\n\n' ...
+    'A + will appear between trials — wait for the background to change.\n\n' ...
+    'Press SPACE to continue.' ];
 
-    % Load and match leadfield
-    lf_data = load(lfc.lf_path);
-    lf_raw  = lf_data.(lfc.lf_var);
 
-    data_meg_labels        = ftdat.label(~strcmp(ftdat.label,'EXG1'));
-    [common_labels,idx_lf] = intersect(lf_raw.label, data_meg_labels, 'stable');
-    fprintf('  Data MEG: %d  |  LF: %d  |  Matched: %d\n', ...
-        numel(data_meg_labels), numel(lf_raw.label), numel(common_labels));
-    if numel(common_labels) < numel(data_meg_labels)
-        fprintf('  WARNING: %d channels not in leadfield\n', ...
-            numel(data_meg_labels) - numel(common_labels));
+%% ===== SETUP =====
+try
+    if ~exist(dataFolder, 'dir'), mkdir(dataFolder); end
+
+    prompt   = {'Participant ID:', 'Session:'};
+    dlgtitle = 'Experiment Info';
+    dims     = [1 35];
+    definput = {'', '001'};
+    answer   = inputdlg(prompt, dlgtitle, dims, definput);
+    if isempty(answer)
+        disp('Experiment cancelled by user.');
+        return;
     end
 
-    Lf        = lf_raw;
-    Lf.label  = common_labels;
-    Lf.pos    = sources_cent.pos;
-    Lf.inside = ones(nsourcepoints, 1);
-    for i = 1:numel(lf_raw.leadfield)
-        if ~isempty(lf_raw.leadfield{i})
-            Lf.leadfield{i} = lf_raw.leadfield{i}(idx_lf, :);
+    participantID = answer{1};
+    sessionNum    = answer{2};
+    timestamp     = datestr(now, 'yyyy-mm-dd_HH-MM-SS');
+    dataFilename  = fullfile(dataFolder, sprintf('sub-%s_ses-%s_%s_words_PRACTICE.csv', ...
+        participantID, sessionNum, timestamp));
+
+    % Gather video files
+    realPracticeVids = dir(fullfile(realPracticeFolder, '*.mp4'));
+
+    if exist(pseudoPracticeFolder, 'dir')
+        pseudoPracticeVids = dir(fullfile(pseudoPracticeFolder, '*.mp4'));
+    else
+        fprintf('NOTE: Pseudo practice folder not found — will use main pseudo videos.\n');
+        pseudoPracticeVids = [];
+    end
+
+    % Main video folders are needed only as fallback if practice folders
+    % don't have enough files; we don't build main trials from them.
+    realVideos   = dir(fullfile(realVideoFolder, '*.mp4'));
+    pseudoVideos = [];
+    hasPseudo    = false;
+
+    if exist(pseudoVideoFolder, 'dir')
+        pseudoVideos = dir(fullfile(pseudoVideoFolder, '*.mp4'));
+        if ~isempty(pseudoVideos)
+            hasPseudo = true;
+        else
+            fprintf('NOTE: Pseudo folder empty — running real only.\n');
         end
+    else
+        fprintf('NOTE: Pseudo folder not found — running real only.\n');
     end
 
-    % Frequency data — keeptrials='yes' for stat/rest, 'no' for combined
-    % Matches make_freq_data in RUN_PIPELINE exactly
-    cfg_fr = []; cfg_fr.output = 'powandcsd'; cfg_fr.method = 'mtmfft';
-    cfg_fr.foilim = fband; cfg_fr.tapsmofrq = 1; cfg_fr.keeptrials = 'yes';
-    cfg_av = []; cfg_av.avgoverfreq = 'yes';
-    cfg_sel = []; cfg_sel.channel = [Lf.label; {'EXG1'}];
+    if isempty(realVideos) && isempty(realPracticeVids)
+        error('No real videos found in practice or main folder.');
+    end
 
-    freqdat_tr = ft_freqanalysis(cfg_fr, ftdat);
-    freqdat_tr = ft_selectdata(cfg_av, freqdat_tr);
+    fprintf('Real: %d practice vids | Pseudo: %d practice vids\n', ...
+        length(realPracticeVids), length(pseudoPracticeVids));
 
-    trialinfo = ftdat.trialinfo;
-    statidx   = find(trialinfo == 1);
-    restidx   = find(trialinfo == 2);
-    nTrials   = min(numel(statidx), numel(restidx));
+    %% ===== BUILD PRACTICE TRIAL LIST ONLY =====
+    trials   = [];
+    trialNum = 1;
 
-    cfg = []; cfg.trials = statidx(1:nTrials);
-    statdat = ft_selectdata(cfg, freqdat_tr);
-    cfg = []; cfg.trials = restidx(1:nTrials);
-    restdat = ft_selectdata(cfg, freqdat_tr);
+    if ~isempty(realPracticeVids)
+        realPrIdx = randperm(length(realPracticeVids));
+    else
+        realPrIdx = [];
+    end
+    if ~isempty(pseudoPracticeVids)
+        pseudoPrIdx = randperm(length(pseudoPracticeVids));
+    else
+        pseudoPrIdx = [];
+    end
 
-    % Combined freq data (no trials) for common spatial filter
-    cfg_fr2 = []; cfg_fr2.output = 'powandcsd'; cfg_fr2.method = 'mtmfft';
-    cfg_fr2.foilim = fband; cfg_fr2.tapsmofrq = 1; cfg_fr2.keeptrials = 'no';
-    freqdat = ft_freqanalysis(cfg_fr2, ftdat);
-    cfg_av2 = []; cfg_av2.avgoverfreq = 'yes';
-    freqdat = ft_selectdata(cfg_av2, freqdat);
+    % Fallback pointers into main folders (only used if practice folder
+    % runs out of files)
+    realMainIdx   = randperm(max(length(realVideos), 1));
+    pseudoMainIdx = randperm(max(length(pseudoVideos), 1));
+    realMainPtr   = 1;
+    pseudoMainPtr = 1;
 
-    % Select channels
-    statdat = ft_selectdata(cfg_sel, statdat);
-    restdat = ft_selectdata(cfg_sel, restdat);
-    freqdat = ft_selectdata(cfg_sel, freqdat);
-
-    fprintf('  nTrials (stat/rest): %d\n', nTrials);
-
-    % Sourcemodel — shared across lambda/smooth for this LF
-    sourcemodel = [];
-    sourcemodel.pos       = Lf.pos;
-    sourcemodel.unit      = 'mm';
-    sourcemodel.inside    = logical(Lf.inside);
-    sourcemodel.leadfield = Lf.leadfield;
-    sourcemodel.label     = Lf.label;
-
-    % Inner loops
-    for si = 1:n_smooth
-        doSmooth = smooth_vals(si);
-
-        for ri = 1:n_lambda
-            lambda   = lambda_vals(ri);
-            cond_num = cond_num + 1;
-
-            cond_label = sprintf('%s_lam%d_smooth%d', lfc.name, lambda, doSmooth);
-            fprintf('\n--- Condition %d/%d: %s ---\n', cond_num, n_total, cond_label);
-            t_start = tic;
-
-            %% Common spatial filter from combined data
-            cfg_dics = [];
-            cfg_dics.sourcemodel     = sourcemodel;
-            cfg_dics.headmodel       = dummyvol;
-            cfg_dics.dics.keepfilter = 'yes';
-            cfg_dics.dics.lambda     = sprintf('%d%%', lambda);
-            cfg_dics.method          = 'dics';
-            cfg_dics.refchan         = 'EXG1';
-            coh_source = ft_sourceanalysis(cfg_dics, freqdat);
-
-            %% Permutation test — contraction vs rest
-            cfg_perm = [];
-            cfg_perm.sourcemodel          = sourcemodel;
-            cfg_perm.headmodel            = dummyvol;
-            cfg_perm.dics.filter          = coh_source.avg.filter;
-            cfg_perm.dics.lambda          = sprintf('%d%%', lambda);
-            cfg_perm.method               = 'dics';
-            cfg_perm.refchan              = 'EXG1';
-            cfg_perm.permutation          = 'yes';
-            cfg_perm.numpermutation       = numpermutation;
-            source_perm = ft_sourceanalysis(cfg_perm, statdat, restdat);
-
-            nPerm = numel(source_perm.trialA);
-            [coh_diff, cohDiff_perm] = extract_coh_diff(source_perm, nsourcepoints, nPerm);
-
-            %% Smoothing — applied to both observed and permutation distributions
-            if doSmooth
-                cohDiff_perm = Wsm * cohDiff_perm;
-                coh_diff     = Wsm * coh_diff;
-            end
-
-            %% Threshold
-            maxPerm = max(cohDiff_perm, [], 1);
-            thr95   = prctile(maxPerm, 95);
-            mask    = coh_diff > thr95;
-
-            fprintf('  Threshold (FWE p<0.05): %.6f\n', thr95);
-            fprintf('  Significant sources:    %d / %d\n', sum(mask), nsourcepoints);
-            [peak_coh, peak_idx] = max(coh_diff);
-            fprintf('  Peak coherence diff: %.4f at y=%.1f mm (source %d)\n', ...
-                peak_coh, cord_pos(peak_idx), peak_idx);
-            fprintf('  Time: %.1f min\n', toc(t_start)/60);
-
-            %% Store
-            r = struct();
-            r.cond_label  = cond_label;
-            r.lf_name     = lfc.name;
-            r.lambda      = lambda;
-            r.doSmooth    = doSmooth;
-            r.coh_diff    = coh_diff;
-            r.cohDiff_perm = cohDiff_perm;
-            r.thr95       = thr95;
-            r.mask        = mask;
-            r.cord_pos    = cord_pos;
-            results{cond_num} = r;
-
-            save(fullfile(save_dir, ['result_' cond_label '.mat']), '-struct', 'r');
+    % --- Stage A: REAL_BLOCK ---
+    for i = 1:nBlockedPracticePerCond
+        if ~isempty(realPracticeVids) && i <= length(realPracticeVids)
+            vidPath = fullfile(realPracticeFolder, realPracticeVids(realPrIdx(i)).name);
+        else
+            vidPath = fullfile(realVideoFolder, realVideos(realMainIdx(realMainPtr)).name);
+            realMainPtr = realMainPtr + 1;
         end
+        trials(trialNum).condition     = 'real';
+        trials(trialNum).videoFile     = vidPath;
+        trials(trialNum).bgColor       = realBgColor;
+        trials(trialNum).isPractice    = true;
+        trials(trialNum).practiceStage = 'REAL_BLOCK';
+        trialNum = trialNum + 1;
     end
-end
 
-%% Save all
-save(fullfile(save_dir, 'all_results.mat'), 'results', 'cord_pos', ...
-    'nsourcepoints', 'roi_idx', 'fwhm_mm', 'lambda_vals', 'smooth_vals');
-fprintf('\n\nAll conditions complete. Results saved.\n');
-
-%% =========================================================================
-%  FIGURES
-%% =========================================================================
-fprintf('Generating figures...\n');
-
-lf_names   = {'BEM','BSLaw'};
-cmap_lines = lines(3);
-
-for si = 1:n_smooth
-    doSmooth   = smooth_vals(si);
-    smooth_str = {'No smoothing','Smoothed 20mm FWHM'};
-
-    figure('Color','w','Position',[50 50 1400 700]);
-    sgtitle(sprintf('Spine-EMG DICS coherence diff (stat-rest) — %s', smooth_str{si}), ...
-        'FontWeight','normal','FontSize',13);
-
-    for li = 1:n_lf
-        for ri = 1:n_lambda
-            lambda = lambda_vals(ri);
-            subplot_idx = (li-1)*n_lambda + ri;
-            subplot(n_lf, n_lambda, subplot_idx);
-            hold on;
-
-            cond_label = sprintf('%s_lam%d_smooth%d', lf_names{li}, lambda, doSmooth);
-            idx = find(cellfun(@(x) strcmp(x.cond_label, cond_label), results));
-            if isempty(idx), continue; end
-            r = results{idx};
-
-            yl_pad = [min(r.coh_diff)*0.9, max(r.coh_diff)*1.15];
-            if yl_pad(1) == yl_pad(2), yl_pad = yl_pad + [-0.01 0.01]; end
-
-            % ROI shading
-            roi_idx_safe = roi_idx(roi_idx <= nsourcepoints);
-            if numel(roi_idx_safe) >= 2
-                fill([cord_pos(roi_idx_safe(1))   cord_pos(roi_idx_safe(end)) ...
-                      cord_pos(roi_idx_safe(end)) cord_pos(roi_idx_safe(1))], ...
-                     [yl_pad(1) yl_pad(1) yl_pad(2) yl_pad(2)], ...
-                     [0.85 0.85 0.85], 'EdgeColor','none', 'DisplayName','ROI (C8-T1)');
-            end
-
-            plot(cord_pos, r.coh_diff, '-', 'Color', cmap_lines(ri,:), ...
-                'LineWidth', 2, 'DisplayName', 'Stat-Rest');
-            yline(r.thr95, '--', 'Color', cmap_lines(ri,:), 'LineWidth', 1.2, ...
-                'DisplayName', sprintf('Thr (%.4f)', r.thr95));
-            if any(r.mask)
-                scatter(cord_pos(r.mask), r.coh_diff(r.mask), 40, ...
-                    cmap_lines(ri,:), 'filled', 'DisplayName', 'Significant');
-            end
-
-            yline(0, 'k:', 'HandleVisibility','off');
-            xlim([min(cord_pos) max(cord_pos)]);
-            ylim(yl_pad);
-            grid on; box on;
-
-            title(sprintf('%s  \\lambda=%d%%', lf_names{li}, lambda), ...
-                'FontWeight','normal','FontSize',10);
-            if ri == 1, ylabel('Coh diff (stat-rest)','FontSize',9); end
-            if li == n_lf
-                xlabel('Position along cord (mm)','FontSize',9);
+    % --- Stage B: PSEUDO_BLOCK ---
+    if hasPseudo
+        for i = 1:nBlockedPracticePerCond
+            if ~isempty(pseudoPracticeVids) && i <= length(pseudoPracticeVids)
+                vidPath = fullfile(pseudoPracticeFolder, pseudoPracticeVids(pseudoPrIdx(i)).name);
             else
-                set(gca,'XTickLabel',[]);
+                vidPath = fullfile(pseudoVideoFolder, pseudoVideos(pseudoMainIdx(pseudoMainPtr)).name);
+                pseudoMainPtr = pseudoMainPtr + 1;
             end
-            if subplot_idx == 1
-                legend('Location','northwest','FontSize',7);
-            end
+            trials(trialNum).condition     = 'pseudo';
+            trials(trialNum).videoFile     = vidPath;
+            trials(trialNum).bgColor       = pseudoBgColor;
+            trials(trialNum).isPractice    = true;
+            trials(trialNum).practiceStage = 'PSEUDO_BLOCK';
+            trialNum = trialNum + 1;
         end
     end
 
-    fname = sprintf('comparison_smooth%d', doSmooth);
-    savefig(gcf, fullfile(fig_dir, [fname '.fig']));
-    saveas(gcf,  fullfile(fig_dir, [fname '.png']));
-end
-
-%% Summary bar chart
-figure('Color','w','Position',[100 100 900 500]);
-x_labels  = {};
-peak_vals = zeros(1, n_total);
-nsig_vals = zeros(1, n_total);
-
-for k = 1:n_total
-    if isempty(results{k}), continue; end
-    r = results{k};
-    [peak_vals(k), ~] = max(r.coh_diff);
-    nsig_vals(k)      = sum(r.mask);
-    x_labels{k}       = strrep(r.cond_label, '_', ' ');
-end
-
-subplot(1,2,1);
-bar(peak_vals); set(gca,'XTick',1:n_total,'XTickLabel',x_labels,'FontSize',7);
-xtickangle(35); ylabel('Peak coherence diff (stat-rest)');
-title('Peak coherence diff','FontWeight','normal'); grid on; box on;
-
-subplot(1,2,2);
-bar(nsig_vals); set(gca,'XTick',1:n_total,'XTickLabel',x_labels,'FontSize',7);
-xtickangle(35); ylabel('N significant sources');
-title('Significant sources (FWE p<0.05)','FontWeight','normal'); grid on; box on;
-
-sgtitle('Condition summary','FontWeight','normal','FontSize',12);
-savefig(gcf, fullfile(fig_dir, 'summary_bar.fig'));
-saveas(gcf,  fullfile(fig_dir, 'summary_bar.png'));
-fprintf('Figures saved to %s\n', fig_dir);
-
-%% =========================================================================
-%  LOCAL FUNCTIONS
-%% =========================================================================
-function [coh_diff, cohDiff_perm] = extract_coh_diff(source_perm, nsourcepoints, nPerm)
-    cohDiff_perm = zeros(nsourcepoints, nPerm);
-    for i = 1:nPerm
-        cohDiff_perm(:,i) = source_perm.trialA(i).coh - source_perm.trialB(i).coh;
+    % --- Stage C: MIXED practice ---
+    mixed = [];
+    for i = 1:nMixedPracticePerCond
+        idx = nBlockedPracticePerCond + i;
+        if ~isempty(realPracticeVids) && idx <= length(realPracticeVids)
+            vidPath = fullfile(realPracticeFolder, realPracticeVids(realPrIdx(idx)).name);
+        else
+            if realMainPtr > length(realMainIdx), realMainPtr = 1; end
+            vidPath = fullfile(realVideoFolder, realVideos(realMainIdx(realMainPtr)).name);
+            realMainPtr = realMainPtr + 1;
+        end
+        mixed(end+1).condition   = 'real'; %#ok<AGROW>
+        mixed(end).videoFile     = vidPath;
+        mixed(end).bgColor       = realBgColor;
+        mixed(end).isPractice    = true;
+        mixed(end).practiceStage = 'MIXED';
     end
-    coh_diff = source_perm.avgA.coh - source_perm.avgB.coh;
+    if hasPseudo
+        for i = 1:nMixedPracticePerCond
+            idx = nBlockedPracticePerCond + i;
+            if ~isempty(pseudoPracticeVids) && idx <= length(pseudoPracticeVids)
+                vidPath = fullfile(pseudoPracticeFolder, pseudoPracticeVids(pseudoPrIdx(idx)).name);
+            else
+                if pseudoMainPtr > length(pseudoMainIdx), pseudoMainPtr = 1; end
+                vidPath = fullfile(pseudoVideoFolder, pseudoVideos(pseudoMainIdx(pseudoMainPtr)).name);
+                pseudoMainPtr = pseudoMainPtr + 1;
+            end
+            mixed(end+1).condition   = 'pseudo'; %#ok<AGROW>
+            mixed(end).videoFile     = vidPath;
+            mixed(end).bgColor       = pseudoBgColor;
+            mixed(end).isPractice    = true;
+            mixed(end).practiceStage = 'MIXED';
+        end
+    end
+    mixed = pseudorandTrials(mixed, 3);
+    for i = 1:length(mixed)
+        trials(trialNum) = mixed(i);
+        trialNum = trialNum + 1;
+    end
+
+    nTrials = length(trials);   % ALL trials are practice
+    fprintf('Practice-only mode: %d trials total\n', nTrials);
+
+    %% ===== PSYCHTOOLBOX SETUP =====
+    InitializePsychSound(1);
+    PsychDefaultSetup(2);
+
+    Screen('Preference', 'SkipSyncTests', skipSyncTests);
+    Screen('Preference', 'VisualDebugLevel', 0);
+    Screen('Preference', 'SuppressAllWarnings', 1);
+    Screen('Preference', 'Verbosity', 0);
+
+    [window, windowRect] = Screen('OpenWindow', screenNumber, neutralGray);
+    Screen('TextFont',  window, 'Arial');
+    Screen('TextStyle', window, 0);
+
+    ifi = Screen('GetFlipInterval', window);
+    fps = 1/ifi;
+    fprintf('Screen %d: %dx%d @ %.2f Hz  (labMode=%d)\n', ...
+        screenNumber, windowRect(3), windowRect(4), fps, labMode);
+
+    pahandle = [];
+    targetFs = 48000;
+    for tryFs = [48000, 44100, 22050]
+        try
+            pahandle = PsychPortAudio('Open', [], 1, 1, tryFs, nrchannels);
+            targetFs = tryFs;
+            fprintf('Audio opened at %d Hz\n', targetFs);
+            break;
+        catch audioErr
+            fprintf('Audio at %d Hz failed (%s), trying next...\n', tryFs, audioErr.message);
+        end
+    end
+    if isempty(pahandle)
+        error('Could not open audio at any sample rate (tried 48000, 44100, 22050).');
+    end
+    PsychPortAudio('Volume', pahandle, 1.0);
+
+    triggerOK = false;
+    ioObj     = [];
+    try
+        ioObj    = io64();
+        ioStatus = io64(ioObj);
+        if ioStatus == 0
+            io64(ioObj, portAddress, 0);
+            triggerOK = true;
+            fprintf('Parallel port OK at 0x%X\n', portAddress);
+        else
+            fprintf('WARNING: io64 init failed (status=%d) — triggers disabled\n', ioStatus);
+        end
+    catch ioErr
+        fprintf('WARNING: Parallel port unavailable (%s) — triggers disabled\n', ioErr.message);
+    end
+
+    KbName('UnifyKeyNames');
+    spaceKey  = KbName('space');
+    escapeKey = KbName('ESCAPE');
+
+    %% ===== DATA LOGGING =====
+    fid = fopen(dataFilename, 'w');
+    fprintf(fid, ['trial,trialType,practiceStage,condition,videoFile,audioFile,' ...
+        'bgPreStart,firstVideoFrame,audioStartTime,videoEnd,' ...
+        'questionStart,questionEnd,responseStart,responseEnd\n']);
+
+    %% ===== RUN PRACTICE TRIALS =====
+    Screen('TextSize', window, questionTextSize);
+    moviePtr = [];
+
+    for trial = 1:nTrials
+
+        % Safety close from previous trial
+        if ~isempty(moviePtr) && moviePtr > 0
+            try, Screen('PlayMovie', moviePtr, 0); catch, end
+            try, Screen('CloseMovie', moviePtr);  catch, end
+            moviePtr = [];
+        end
+
+        % --- Instruction screens ---
+        if strcmp(trials(trial).practiceStage, 'REAL_BLOCK') && trial == 1
+            showInstruction(realBgColor, realInstructionText1);
+            showInstruction(realBgColor, realInstructionText2);
+            showInstruction(realBgColor, realInstructionText3);
+        end
+
+        if hasPseudo && strcmp(trials(trial).practiceStage, 'PSEUDO_BLOCK') && trial > 1 ...
+                && strcmp(trials(trial-1).practiceStage, 'REAL_BLOCK')
+            showInstruction(pseudoBgColor, pseudoInstructionText1);
+            showInstruction(pseudoBgColor, pseudoInstructionText2);
+        end
+
+        if hasPseudo && strcmp(trials(trial).practiceStage, 'MIXED') && trial > 1 ...
+                && strcmp(trials(trial-1).practiceStage, 'PSEUDO_BLOCK')
+            Screen('FillRect', window, neutralGray);
+            Screen('TextSize', window, instructionTextSize);
+            lineH    = instructionTextSize * instructionVSpacing;
+            screenH  = windowRect(4);
+            nLines   = 13;
+            startY   = (screenH - nLines * lineH) / 2;
+            [~, topY]  = DrawFormattedText(window, mixedPracticeText_top, 'center', startY, instructionTextColor, ...
+                instructionWrapAt, [], [], instructionVSpacing);
+            [~, greenY] = DrawFormattedText(window, mixedPracticeText_green, 'center', topY + lineH, [0 80 180], ...
+                instructionWrapAt, [], [], instructionVSpacing);
+            [~, blueY]  = DrawFormattedText(window, mixedPracticeText_blue, 'center', greenY + lineH, [180 80 0], ...
+                instructionWrapAt, [], [], instructionVSpacing);
+            DrawFormattedText(window, mixedPracticeText_bottom, 'center', blueY + lineH, instructionTextColor, ...
+                instructionWrapAt, [], [], instructionVSpacing);
+            Screen('Flip', window);
+            waitForSpaceOrEscape();
+            WaitSecs(0.2);
+            Screen('TextSize', window, questionTextSize);
+        end
+
+        % All trials here are practice
+        preVideoDuration = practice_preVideoDuration;
+        questionDuration = practice_questionDuration;
+        responseDuration = practice_responseDuration;
+        trialType        = 'PRACTICE';
+
+        fprintf('\n=== Trial %d/%d (%s) | %s | %s ===\n', ...
+            trial, nTrials, trialType, trials(trial).practiceStage, trials(trial).condition);
+
+        %% Prepare audio
+        [audioFolder, audioBase, ~] = fileparts(trials(trial).videoFile);
+        audioFile = fullfile(audioFolder, [audioBase '.wav']);
+
+        PsychPortAudio('Stop', pahandle, 1);
+        haveAudio = false;
+
+        if exist(audioFile, 'file')
+            [y, fs] = audioread(audioFile);
+            if size(y,2) > 1, y = mean(y,2); end
+            if fs ~= targetFs, y = resample(y, targetFs, fs); end
+            PsychPortAudio('FillBuffer', pahandle, y');
+            haveAudio = true;
+        else
+            warning('Missing WAV: %s', audioFile);
+        end
+
+        %% PHASE 1: Pre-video background + preload movie
+        bgColor255 = trials(trial).bgColor * 255;
+        Screen('FillRect', window, bgColor255);
+        bgPreStart = Screen('Flip', window);
+        sendTrigger(TRIG_BG);
+        fprintf('  [TIMING] Background at %.3f\n', bgPreStart);
+
+        try
+            moviePtr = Screen('OpenMovie', window, trials(trial).videoFile, [], [], 1);
+        catch openErr
+            fprintf('ERROR: Could not open video: %s\n', openErr.message);
+            moviePtr = [];
+            waitWithEscapeUntil(bgPreStart + preVideoDuration);
+            continue;
+        end
+
+        waitWithEscapeUntil(bgPreStart + preVideoDuration);
+
+        %% PHASE 2: Play video (muted) + sync audio to first frame
+        Screen('PlayMovie', moviePtr, 1, 0, 0);
+
+        frameCount     = 0;
+        firstFrameTime = nan;
+        audioStartTime = nan;
+        audioStarted   = false;
+        questionStart  = nan;
+        videoEnd       = nan;
+
+        while true
+            [kd, ~, kc] = KbCheck(-1);
+            if kd && kc(escapeKey)
+                if ~isempty(moviePtr) && moviePtr > 0
+                    try, Screen('PlayMovie', moviePtr, 0); catch, end
+                    try, Screen('CloseMovie', moviePtr);  catch, end
+                    moviePtr = [];
+                end
+                PsychPortAudio('Stop', pahandle, 1);
+                error('Experiment terminated by user (ESC).');
+            end
+
+            tex = Screen('GetMovieImage', window, moviePtr);
+
+            if tex <= 0
+                Screen('FillRect', window, bgColor255);
+                Screen('TextSize', window, questionTextSize);
+                DrawFormattedText(window, questionText, 'center', 'center', questionTextColor);
+                questionStart = Screen('Flip', window);
+                videoEnd      = questionStart;
+                sendTrigger(TRIG_QUESTION);
+                break;
+            end
+
+            Screen('FillRect', window, bgColor255);
+            Screen('DrawTexture', window, tex);
+            vbl = Screen('Flip', window);
+
+            if frameCount == 0
+                firstFrameTime = vbl;
+                sendTrigger(TRIG_VIDEO);
+                if haveAudio && ~audioStarted
+                    PsychPortAudio('Start', pahandle, 1, firstFrameTime, 0);
+                    audioStartTime = firstFrameTime;
+                    audioStarted   = true;
+                end
+                fprintf('  [TIMING] First frame at %.3f (bg delay: %.1f ms)\n', ...
+                    firstFrameTime, (firstFrameTime - bgPreStart)*1000);
+            end
+
+            frameCount = frameCount + 1;
+            Screen('Close', tex);
+        end
+
+        PsychPortAudio('Stop', pahandle, 1);
+
+        if ~isempty(moviePtr) && moviePtr > 0
+            try, Screen('PlayMovie', moviePtr, 0); catch, end
+            try, Screen('CloseMovie', moviePtr);  catch, end
+            moviePtr = [];
+        end
+
+        fprintf('  [TIMING] Video end/question at %.3f (%d frames)\n', videoEnd, frameCount);
+
+        %% PHASE 3: Question duration
+        waitWithEscapeSeconds(questionDuration);
+        questionEnd = GetSecs();
+
+        %% PHASE 4: Response period
+        Screen('FillRect', window, bgColor255);
+        responseStart = Screen('Flip', window);
+        waitWithEscapeSeconds(responseDuration);
+        responseEnd = GetSecs();
+
+        %% Save trial data
+        fprintf(fid, '%d,%s,%s,%s,%s,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n', ...
+            trial, trialType, trials(trial).practiceStage, trials(trial).condition, ...
+            trials(trial).videoFile, audioFile, ...
+            bgPreStart, firstFrameTime, audioStartTime, videoEnd, ...
+            questionStart, questionEnd, responseStart, responseEnd);
+
+        %% ITI
+        if trial < nTrials
+            nextBgColor255 = trials(trial+1).bgColor * 255;
+        else
+            nextBgColor255 = neutralGray;
+        end
+
+        if strcmp(trials(trial).practiceStage, 'REAL_BLOCK') || ...
+                strcmp(trials(trial).practiceStage, 'PSEUDO_BLOCK')
+            % Blocked practice: hold on neutral with SPACE prompt
+            Screen('FillRect', window, neutralGray);
+            Screen('TextSize', window, itiTextSize);
+            DrawFormattedText(window, 'Press SPACE to continue\n\n+', 'center', 'center', instructionTextColor, ...
+                instructionWrapAt, [], [], instructionVSpacing);
+            Screen('Flip', window);
+            waitForSpaceOrEscape();
+            Screen('TextSize', window, questionTextSize);
+        else
+            % Mixed practice: auto-advance fixation cross
+            Screen('FillRect', window, nextBgColor255);
+            Screen('TextSize', window, 200);
+            DrawFormattedText(window, '+', 'center', 'center', instructionTextColor);
+            Screen('Flip', window);
+            waitWithEscapeSeconds(0.5);
+            Screen('TextSize', window, questionTextSize);
+        end
+
+    end
+
+    %% ===== END SCREEN =====
+    fclose(fid);
+    PsychPortAudio('Close', pahandle);
+    Screen('FillRect', window, neutralGray);
+    Screen('TextSize', window, 44);
+    DrawFormattedText(window, 'Practice complete!\n\nThank you — the experimenter will now start the main session.', ...
+        'center', 'center', instructionTextColor, instructionWrapAt, [], [], instructionVSpacing);
+    Screen('Flip', window);
+    WaitSecs(3);
+    sca;
+    ShowCursor;
+    fprintf('\n=== PRACTICE COMPLETE ===\n');
+    fprintf('Data saved to: %s\n', dataFilename);
+    fprintf('Total practice trials: %d\n', nTrials);
+
+catch ME
+    if exist('moviePtr','var') && ~isempty(moviePtr) && moviePtr > 0
+        try, Screen('PlayMovie', moviePtr, 0); catch, end
+        try, Screen('CloseMovie', moviePtr);  catch, end
+    end
+    sca;
+    ShowCursor;
+    fprintf('\n=== ERROR ===\n%s\n', ME.message);
+    try, if exist('fid','var') && fid > 0, fclose(fid); end, catch, end
+    try, if exist('pahandle','var') && ~isempty(pahandle), PsychPortAudio('Close', pahandle); end, catch, end
+    rethrow(ME);
 end
 
-function W = make_gaussian_smoother(pos_mm, fwhm_mm, radius_mm)
-    sigma = fwhm_mm / 2.355;
-    if nargin < 3 || isempty(radius_mm), radius_mm = 3*sigma; end
-    N   = size(pos_mm, 1);
-    Mdl = KDTreeSearcher(pos_mm);
-    [idx, dist] = rangesearch(Mdl, pos_mm, radius_mm);
-    ii = []; jj = []; vv = [];
-    for i = 1:N
-        j = idx{i}; d = dist{i};
-        w = exp(-0.5*(d./sigma).^2);
-        ii = [ii; repmat(i,numel(j),1)]; jj = [jj; j(:)]; vv = [vv; w(:)];
+
+%% ===== HELPERS =====
+
+    function sendTrigger(code)
+        if ~triggerOK || isempty(ioObj), return; end
+        try
+            io64(ioObj, portAddress, code);
+            WaitSecs(triggerDuration);
+            io64(ioObj, portAddress, 0);
+        catch
+        end
     end
-    W  = sparse(ii,jj,vv,N,N);
-    rs = full(sum(W,2)); rs(rs==0) = 1;
-    W  = spdiags(1./rs,0,N,N) * W;
+
+    function showInstruction(bgColor01, txt)
+        Screen('FillRect', window, bgColor01 * 255);
+        Screen('TextSize', window, instructionTextSize);
+        DrawFormattedText(window, txt, 'center', 'center', instructionTextColor, ...
+            instructionWrapAt, [], [], instructionVSpacing);
+        Screen('Flip', window);
+        waitForSpaceOrEscape();
+        WaitSecs(0.2);
+        Screen('TextSize', window, questionTextSize);
+    end
+
+    function waitForSpaceOrEscape()
+        KbReleaseWait(-1);
+        while true
+            [keyIsDown, ~, keyCode] = KbCheck(-1);
+            if keyIsDown
+                if keyCode(escapeKey)
+                    error('Experiment terminated by user (ESC).');
+                elseif keyCode(spaceKey)
+                    KbReleaseWait(-1);
+                    break;
+                end
+            end
+            WaitSecs(0.001);
+        end
+    end
+
+    function tf = checkEscapeNow()
+        tf = false;
+        [keyIsDown, ~, keyCode] = KbCheck(-1);
+        if keyIsDown && keyCode(escapeKey), tf = true; end
+    end
+
+    function waitWithEscapeSeconds(dur)
+        t0 = GetSecs();
+        while (GetSecs() - t0) < dur
+            if checkEscapeNow()
+                error('Experiment terminated by user (ESC).');
+            end
+            WaitSecs(0.001);
+        end
+    end
+
+    function waitWithEscapeUntil(t)
+        while GetSecs() < t
+            if checkEscapeNow()
+                error('Experiment terminated by user (ESC).');
+            end
+            WaitSecs(0.001);
+        end
+    end
+
+    function out = pseudorandTrials(in, maxRun)
+        conditions  = {in.condition};
+        n           = length(in);
+        maxAttempts = 10000;
+        for attempt = 1:maxAttempts
+            idx   = randperm(n);
+            cond  = conditions(idx);
+            valid = true;
+            for k = maxRun+1 : n
+                if all(strcmp(cond(k-maxRun:k), cond{k}))
+                    valid = false;
+                    break;
+                end
+            end
+            if valid
+                out = in(idx);
+                return;
+            end
+        end
+        warning('pseudorandTrials: could not satisfy max-run constraint after %d attempts; using best random shuffle.', maxAttempts);
+        out = in(randperm(n));
+    end
+
 end
