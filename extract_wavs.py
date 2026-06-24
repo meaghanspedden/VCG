@@ -17,10 +17,10 @@ from pathlib import Path
 # ===== USER SETTINGS =====
 # Add all folders you need WAVs for
 FOLDERS = [
-    r"C:\Users\mspedden\Videos\final\Real words\final selected realwords_1peri2orange",
-    r"C:\Users\mspedden\Videos\final\Real words\final selected realwords_1orange2peri",
-    r"C:\Users\mspedden\Videos\final\Pseudosigns\blend_1peri_2orange",
-    r"C:\Users\mspedden\Videos\final\Pseudosigns\blend_1orange_2peri",
+    r"C:\Users\mspedden\Videos\final\Real words\stimuli_orange",
+    r"C:\Users\mspedden\Videos\final\Real words\stimuli_orange\practice",
+    r"C:\Users\mspedden\Videos\final\Pseudowords\final_blue",
+    r"C:\Users\mspedden\Videos\final\Pseudowords\final_blue\practice",
 ]
 FFMPEG   = r"C:\Users\mspedden\Documents\ffmpeg-2026-05-06-git-f2e5eff3ff-full_build\bin\ffmpeg.exe"
 SAMPLE_RATE = 48000   # PTB default

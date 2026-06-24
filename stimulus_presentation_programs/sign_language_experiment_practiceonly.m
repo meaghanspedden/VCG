@@ -44,8 +44,8 @@ nMixedPracticePerCond   = nPracticePerCond - nBlockedPracticePerCond;
 
 % PRACTICE timing
 practice_preVideoDuration = 1;
-practice_questionDuration = 1.0;
-practice_responseDuration = 2.0;
+practice_questionDuration = 1.9;
+practice_responseDuration = 0.1;
 
 % Text settings
 questionText      = '?';
@@ -71,7 +71,7 @@ realInstructionText1 = [ ...
     'Press SPACE to begin.' ];
 
 pseudoInstructionText1 = [ ...
-    'Blue background: movements to mirror.\n\n' ...
+    'Light blue background: movements to mirror.\n\n' ...
     'Press SPACE to begin.' ];
 
 mixedPracticeText = [ ...

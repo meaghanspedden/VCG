@@ -1,12 +1,12 @@
-function word_experiment_practiceonly()
+function word_experiment_practiceonly_REALORANGE()
 % WORD_EXPERIMENT_PRACTICEONLY
 % Practice-only version of word_experiment_withpractice_v4.
 % Runs ONLY the three practice stages (REAL_BLOCK, PSEUDO_BLOCK, MIXED).
 % No main experiment trials are built or run.
-%
+
 % PRACTICE:
-%   A) REAL/BLUE instructions + blocked real practice trials (SPACE between)
-%   B) PSEUDO/ORANGE instructions + blocked pseudo practice trials (SPACE between)
+%   A) REAL/ORANGE instructions + blocked real practice trials (SPACE between)
+%   B) PSEUDO/BLUE instructions + blocked pseudo practice trials (SPACE between)
 %   C) MIXED practice: remaining real + pseudo (randomized, no SPACE)
 %
 % All other behaviour (timing, audio, triggers, etc.) is identical to v4.
@@ -21,14 +21,14 @@ skipSyncTests = 2;
 
 %% ===== EXPERIMENT PARAMETERS =====
 
-realVideoFolder      = 'C:\Users\mspedden\Videos\final\Real words\stimuli_blue\h264';
-realPracticeFolder   = 'C:\Users\mspedden\Videos\final\Real words\stimuli_blue\h264\practice';
-pseudoVideoFolder    = 'C:\Users\mspedden\Videos\final\Pseudowords\final_orange';
-pseudoPracticeFolder = 'C:\Users\mspedden\Videos\final\Pseudowords\final_orange\practice';
+realVideoFolder      = 'C:\Users\mspedden\Videos\final\Real words\stimuli_orange\h264';
+realPracticeFolder   = 'C:\Users\mspedden\Videos\final\Real words\stimuli_orange\practice\h264';
+pseudoVideoFolder    = 'C:\Users\mspedden\Videos\final\Pseudowords\final_blue\h264';
+pseudoPracticeFolder = 'C:\Users\mspedden\Videos\final\Pseudowords\final_blue\practice\h264';
 dataFolder           = 'C:\Users\mspedden\Documents\experiment_data';
 
-realBgColor   = [170, 190, 222] / 255;
-pseudoBgColor = [204, 119, 82]  / 255;
+realBgColor   = [204, 119, 82]  / 255;  % orange — now real
+pseudoBgColor = [170, 190, 222] / 255;  % light blue — now pseudo
 neutralGray   = [180, 180, 180];
 textGray      = [40, 40, 40];
 
@@ -58,11 +58,11 @@ TRIG_QUESTION = 4;
 
 % Minimal on-screen prompts — experimenter delivers full instructions live
 realInstructionText1 = [ ...
-    'Light blue background: real words.\n\n' ...
+    'Orange background: real words.\n\n' ...
     'Press SPACE to begin.' ];
 
 pseudoInstructionText1 = [ ...
-    'Orange background: made-up words.\n\n' ...
+    'Light blue background: made-up words.\n\n' ...
     'Press SPACE to begin.' ];
 
 mixedPracticeText = [ ...

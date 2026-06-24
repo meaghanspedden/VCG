@@ -1,80 +1,92 @@
-%% co-reg: generic helmet and optical scan  — v4
+%% co-reg: generic helmet and optical scan — v5
 %
-%  KEY CHANGES:
-%  v2: head<->head+cast bridging uses NAS, CHIN, R_SHOULDER
-%      instead of NAS/LPA/RPA — preauricular points occluded by cast.
-%  v3: load_mesh() replaces gifti() — supports .stl, .obj, .gii.
-%  v4: removed duplicate struct unpacking lines; scanner-agnostic
-%      (works with iPad/Skanect .obj in metres or Einscan .stl in mm).
+%  KEY CHANGES v5: downsampled meshes used for all interactive picking
+%                  and visualisation; full-res meshes kept only for
+%                  final .gii export to spm_opm_opreg_MES.
 %
-%  P  (head-only):      NAS, LPA, RPA              — for MNI alignment only
-%  P2 (head+cast):      NAS, CHIN, R_SHOULDER     — cast-safe bridge
-%  P2_head (head-only): same 3 points              — cast-safe bridge
+%  P  (head-only):      NAS, LPA, RPA              — MNI alignment only
+%  P2 (head+cast):      NAS, CHIN, R_SHOULDER      — cast-safe bridge
+%  P2_head (head-only): NAS, CHIN, R_SHOULDER      — cast-safe bridge
 %  P3 (helmet STL):     FPz, T3, T4  (mm)
 %  P4 (head+cast):      FPz, T3, T4
-%
-%  verify_landmarks ranges assume mm. If using iPad/Skanect scans (metres),
-%  update the expected_range values in sections 1, 2, 2b, and 4 accordingly.
-%  The determine_scan_units check will warn if P2/P2_head units disagree.
 
-clear all
-close all
+clear all; close all
 
 addpath('C:\Users\mspedden\Documents\spm')
 spm('defaults','EEG')
 
-%% File paths
-withCast   = "C:\Users\mspedden\Documents\VCG\einscanwithshoulder\meaghan_opticcalscans\withhelmetDS.stl";
-headonly   = "C:\Users\mspedden\Documents\VCG\einscanwithshoulder\meaghan_opticcalscans\withouthelmetDS.stl";
-% withCast='C:\Users\mspedden\Documents\VCG\opticalscanSB\withcast.stl';
-% headonly='C:\Users\mspedden\Documents\VCG\opticalscanSB\withoutcast.stl';
+%% -------------------------------------------------------------------------
+%  File paths
+%% -------------------------------------------------------------------------
+withCast   = "C:\Users\mspedden\OP00276_aux\withhelmetOP00276.stl";
+headonly   = "C:\Users\mspedden\OP00276_aux\withouthelmetOP00276.stl";
 helmetfile = 'C:\Users\mspedden\Documents\VCG\Adult_L_purple_lite.stl';
+ds_file    = 'C:\Users\mspedden\Sub-OP00276\meshes_downsampled.mat';
+ds_factor  = 0.5;
 
-%% Load EEG data
+%% -------------------------------------------------------------------------
+%  Load OPM data
+%% -------------------------------------------------------------------------
 D = spm_eeg_load('C:\Users\mspedden\Documents\VCG\sub-OP00228\epochedERDmfffsub-OP00228_task-verb_run-001.mat');
 
-%% Load meshes  (supports .stl, .obj, .gii)
+%% -------------------------------------------------------------------------
+%  Load full-res meshes (needed for final .gii export only)
+%% -------------------------------------------------------------------------
 h   = load_mesh(headonly);
 hc  = load_mesh(withCast);
 hel = load_mesh(helmetfile);
 
-h2   = reducepatch(h,   0.5);
-hc2  = reducepatch(hc,  0.5);
-hel2 = reducepatch(hel, 0.5);
+%% -------------------------------------------------------------------------
+%  Load or compute downsampled meshes
+%  (used for all picking and visualisation — much faster)
+%% -------------------------------------------------------------------------
+if exist(ds_file, 'file')
+    fprintf('Loading cached downsampled meshes:\n  %s\n', ds_file);
+    tmp  = load(ds_file);
+    h2   = tmp.h2;
+    hc2  = tmp.hc2;
+    clear tmp;
+else
+    fprintf('Running reducepatch (first time only — saving for next run)...\n');
+    h2   = reducepatch(h,   ds_factor);
+    hc2  = reducepatch(hc,  ds_factor);
+    hel2 = hel;
+    save(ds_file, 'h2', 'hc2', 'hel2');
+    fprintf('Saved to: %s\n', ds_file);
+end
+
+fprintf('Mesh sizes — h2: %d faces  |  hc2: %d faces  |  hel2: %d faces\n', ...
+    size(h2.faces,1), size(hc2.faces,1), size(hel2.faces,1));
 
 %% =========================================================================
-%  CONVENTION: all landmark matrices are 3xN (rows=xyz, cols=points).
-%  spm_mesh_select returns 3xN directly - do NOT transpose its output.
+%  LANDMARK PICKING  (all on downsampled meshes for speed)
 %
-%  NOTE on units: Einscan outputs mm, not metres. verify_landmarks will
-%  flag if distances look wrong. Update the unit_label strings and the
-%  P4*1000 conversion in Fig 3 if your scans are in mm not metres.
+%  CONVENTION: landmark matrices are 3xN (rows=xyz, cols=points).
+%  spm_mesh_select returns 3xN — do NOT transpose.
+%  Units: Einscan = mm throughout.
 %  =========================================================================
 
-%% 1. NAS, LPA, RPA on head-only scan
-%    Used only for MNI alignment via S.fiducials.
-P = spm_mesh_select(h, {'NAS','LPA','RPA'});
+%% 1. NAS, LPA, RPA on head-only  (MNI alignment only)
+P = spm_mesh_select(h2, {'NAS','LPA','RPA'});
 verify_landmarks(P, {'NAS','LPA','RPA'}, [100, 250], 'mm');
 
-%% 2. NAS, CHIN, R_SHOULDER on head+cast scan
-%    Two repeatable midline points + one shoulder for left/right constraint.
-%    Pick in order: NAS, CHIN, R_SHOULDER (subject's right).
-P2 = spm_mesh_select(hc, {'NAS','CHIN','R_SHOULDER'});
+%% 2. NAS, CHIN, R_SHOULDER on head+cast
+%    Order: NAS, CHIN, R_SHOULDER (subject's right)
+P2 = spm_mesh_select(hc2, {'NAS','CHIN','R_SHOULDER'});
 verify_landmarks(P2, {'NAS','CHIN','R_SHOULDER'}, [100, 400], 'mm');
 
-%% 2b. SAME three landmarks on head-only scan
-%    Pick in SAME ORDER as P2.
-P2_head = spm_mesh_select(h, {'NAS','CHIN','R_SHOULDER'});
+%% 2b. Same three landmarks on head-only  (pick in same order as P2)
+P2_head = spm_mesh_select(h2, {'NAS','CHIN','R_SHOULDER'});
 verify_landmarks(P2_head, {'NAS','CHIN','R_SHOULDER'}, [100, 400], 'mm');
 
-%% 3. FPz, T3, T4 on helmet STL (mm - native STL units)
+%% 3. FPz, T3, T4 on helmet STL  (hardcoded — re-run spm_mesh_select to update)
 % P3 = spm_mesh_select(hel2, {'FPz','T3','T4'});
 P3 = [  0,      -114.6213,  113.3185;
        142.8976,   24.0886,   31.6296;
        -24.8934,  -61.9631,  -61.1757];
 verify_landmarks(P3, {'FPz','T3','T4'}, [150, 300], 'mm');
 
-%% 4. FPz, T3, T4 on head+cast scan
+%% 4. FPz, T3, T4 on head+cast
 P4 = spm_mesh_select(hc2, {'FPz','T3','T4'});
 verify_landmarks(P4, {'FPz','T3','T4'}, [150, 300], 'mm');
 
@@ -88,85 +100,70 @@ if abs(sf_check - 1) > 0.2
 end
 
 %% =========================================================================
-%  DIAGNOSTIC FIGURES
+%  DIAGNOSTIC FIGURES  (all use downsampled meshes)
 %  =========================================================================
-
 lbl3  = {'FPz','T3','T4'};
 lbl2  = {'NAS','CHIN','R\_SHOULDER'};
 lblP  = {'NAS','LPA','RPA'};
 cols3 = [1 0.5 0; 0.5 0 1; 0 0.8 0.8];
 cols4 = [1 0 0; 0 0.8 0; 0 0 1];
 
-%-- Fig 1: P3 on helmet STL -----------------------------------------------
-figure('Name','Fig 1: P3 on Helmet STL','NumberTitle','off','Color','w');
+%-- Fig 1: P3 on helmet ---------------------------------------------------
+figure('Name','Fig 1: P3 on Helmet','NumberTitle','off','Color','w');
 hold on;
 patch('Vertices',hel2.vertices,'Faces',hel2.faces,...
     'FaceColor',[0.8 0.8 0.8],'EdgeColor','none','FaceAlpha',0.5);
 for i = 1:3
-    scatter3(P3(1,i),P3(2,i),P3(3,i),400,cols3(i,:),'filled',...
-        'MarkerEdgeColor','k','DisplayName',lbl3{i});
-    text(P3(1,i),P3(2,i),P3(3,i),['  ' lbl3{i}],...
-        'FontSize',12,'FontWeight','bold','Color',cols3(i,:));
+    scatter3(P3(1,i),P3(2,i),P3(3,i),400,cols3(i,:),'filled','MarkerEdgeColor','k','DisplayName',lbl3{i});
+    text(P3(1,i),P3(2,i),P3(3,i),['  ' lbl3{i}],'FontSize',12,'FontWeight','bold','Color',cols3(i,:));
 end
 legend('Location','best');
-title('Fig 1: P3 on Helmet STL — FPz front-centre, T3 left, T4 right');
+title('Fig 1: P3 on Helmet — FPz front-centre, T3 left, T4 right');
 xlabel('x (mm)'); ylabel('y (mm)'); zlabel('z (mm)');
 axis equal; grid on; view(3); lighting gouraud; camlight('headlight');
 
-%-- Fig 2: P4 on head+cast ------------------------------------------------
+%-- Fig 2: P4 on head+cast -----------------------------------------------
 figure('Name','Fig 2: P4 on Head+Cast','NumberTitle','off','Color','w');
 hold on;
 patch('Vertices',hc2.vertices,'Faces',hc2.faces,...
     'FaceColor',[0.8 0.8 0.8],'EdgeColor','none','FaceAlpha',0.5);
 for i = 1:3
-    scatter3(P4(1,i),P4(2,i),P4(3,i),400,cols3(i,:),'filled',...
-        'MarkerEdgeColor','k','DisplayName',lbl3{i});
-    text(P4(1,i),P4(2,i),P4(3,i),['  ' lbl3{i}],...
-        'FontSize',12,'FontWeight','bold','Color',cols3(i,:));
+    scatter3(P4(1,i),P4(2,i),P4(3,i),400,cols3(i,:),'filled','MarkerEdgeColor','k','DisplayName',lbl3{i});
+    text(P4(1,i),P4(2,i),P4(3,i),['  ' lbl3{i}],'FontSize',12,'FontWeight','bold','Color',cols3(i,:));
 end
 legend('Location','best');
 title('Fig 2: P4 on Head+Cast — FPz forehead, T3 left temple, T4 right temple');
-xlabel('x'); ylabel('y'); zlabel('z');
+xlabel('x (mm)'); ylabel('y (mm)'); zlabel('z (mm)');
 axis equal; grid on; view(3); lighting gouraud; camlight('headlight');
 
-%-- Fig 3: Stage 1 preview (helmet -> head+cast) --------------------------
-%  Both helmet STL and Einscan are in mm — no unit conversion needed.
-P3_mm  = P3;
-P4_mm  = P4;
-hc2_mm = hc2;
-
-helm2headhelm_preview = spm_eeg_inv_rigidreg(P4_mm, P3_mm);
-hel2_tfm = spm_mesh_transform(hel2, helm2headhelm_preview);
-P3_tfm   = helm2headhelm_preview * [P3_mm; ones(1,3)];
+%-- Fig 3: Stage 1 preview (helmet -> head+cast) -------------------------
+helm2headhelm_preview = spm_eeg_inv_rigidreg(P4, P3);
+hel2_tfm  = spm_mesh_transform(hel2, helm2headhelm_preview);
+P3_tfm    = helm2headhelm_preview * [P3; ones(1,3)];
 
 figure('Name','Fig 3: Stage 1 preview','NumberTitle','off','Color','w');
 hold on;
-patch('Vertices',hc2_mm.vertices,'Faces',hc2_mm.faces,...
-    'FaceColor',[0.5 0.75 1],'EdgeColor','none','FaceAlpha',0.35,...
-    'DisplayName','Head+Cast scan');
+patch('Vertices',hc2.vertices,'Faces',hc2.faces,...
+    'FaceColor',[0.5 0.75 1],'EdgeColor','none','FaceAlpha',0.35,'DisplayName','Head+Cast');
 patch('Vertices',hel2_tfm.vertices,'Faces',hel2_tfm.faces,...
-    'FaceColor',[1 0.55 0.1],'EdgeColor','none','FaceAlpha',0.35,...
-    'DisplayName','Helmet (transformed)');
+    'FaceColor',[1 0.55 0.1],'EdgeColor','none','FaceAlpha',0.35,'DisplayName','Helmet (transformed)');
 for i = 1:3
-    scatter3(P4_mm(1,i),P4_mm(2,i),P4_mm(3,i),400,'r','filled','HandleVisibility','off');
-    text(P4_mm(1,i),P4_mm(2,i),P4_mm(3,i),['  ' lbl3{i} ' (target)'],...
-        'Color','r','FontWeight','bold','FontSize',11);
+    scatter3(P4(1,i),P4(2,i),P4(3,i),400,'r','filled','HandleVisibility','off');
+    text(P4(1,i),P4(2,i),P4(3,i),['  ' lbl3{i} ' (target)'],'Color','r','FontWeight','bold','FontSize',11);
     scatter3(P3_tfm(1,i),P3_tfm(2,i),P3_tfm(3,i),400,'b','^','filled','HandleVisibility','off');
-    text(P3_tfm(1,i),P3_tfm(2,i),P3_tfm(3,i),['  ' lbl3{i} ' (helmet)'],...
-        'Color','b','FontWeight','bold','FontSize',11);
-    plot3([P4_mm(1,i) P3_tfm(1,i)],[P4_mm(2,i) P3_tfm(2,i)],[P4_mm(3,i) P3_tfm(3,i)],...
+    text(P3_tfm(1,i),P3_tfm(2,i),P3_tfm(3,i),['  ' lbl3{i} ' (helmet)'],'Color','b','FontWeight','bold','FontSize',11);
+    plot3([P4(1,i) P3_tfm(1,i)],[P4(2,i) P3_tfm(2,i)],[P4(3,i) P3_tfm(3,i)],...
         'k-','LineWidth',2.5,'HandleVisibility','off');
 end
 legend('Location','best');
-title({'Fig 3: Stage 1 preview — Helmet (orange) on Head+Cast (blue)',...
+title({'Fig 3: Stage 1 — Helmet (orange) on Head+Cast (blue)',...
        'Helmet should sit outside head like a hat'});
 xlabel('x (mm)'); ylabel('y (mm)'); zlabel('z (mm)');
 axis equal; grid on; view(3); lighting gouraud; camlight('headlight');
 
-fprintf('\n--- Stage 1 preview residuals ---\n');
+fprintf('\n--- Stage 1 residuals ---\n');
 for i = 1:3
-    r = P4_mm(:,i) - P3_tfm(1:3,i);
-    fprintf('  %s: norm=%.1f mm\n', lbl3{i}, norm(r));
+    fprintf('  %s: %.1f mm\n', lbl3{i}, norm(P4(:,i) - P3_tfm(1:3,i)));
 end
 
 %-- Fig 4: P on head-only (NAS/LPA/RPA) ----------------------------------
@@ -175,123 +172,107 @@ hold on;
 patch('Vertices',h2.vertices,'Faces',h2.faces,...
     'FaceColor',[0.8 0.8 0.8],'EdgeColor','none','FaceAlpha',0.5);
 for i = 1:size(P,2)
-    scatter3(P(1,i),P(2,i),P(3,i),400,cols4(i,:),'filled',...
-        'MarkerEdgeColor','k','DisplayName',lblP{i});
-    text(P(1,i),P(2,i),P(3,i),['  ' lblP{i}],...
-        'FontSize',12,'FontWeight','bold','Color',cols4(i,:));
+    scatter3(P(1,i),P(2,i),P(3,i),400,cols4(i,:),'filled','MarkerEdgeColor','k','DisplayName',lblP{i});
+    text(P(1,i),P(2,i),P(3,i),['  ' lblP{i}],'FontSize',12,'FontWeight','bold','Color',cols4(i,:));
 end
 legend('Location','best');
 title('Fig 4: P on head-only — NAS/LPA/RPA');
 xlabel('x (mm)'); ylabel('y (mm)'); zlabel('z (mm)');
 axis equal; grid on; view(3); lighting gouraud; camlight('headlight');
 
-%-- Fig 5: P2 on head+cast (shoulder+chin triangle) ----------------------
-figure('Name','Fig 5: P2 on head+cast — Shoulder+Chin','NumberTitle','off','Color','w');
+%-- Fig 5: P2 on head+cast -----------------------------------------------
+figure('Name','Fig 5: P2 on head+cast','NumberTitle','off','Color','w');
 hold on;
 patch('Vertices',hc2.vertices,'Faces',hc2.faces,...
     'FaceColor',[0.8 0.8 0.8],'EdgeColor','none','FaceAlpha',0.5);
 for i = 1:3
-    scatter3(P2(1,i),P2(2,i),P2(3,i),400,cols3(i,:),'filled',...
-        'MarkerEdgeColor','k','DisplayName',lbl2{i});
-    text(P2(1,i),P2(2,i),P2(3,i),['  ' lbl2{i}],...
-        'FontSize',12,'FontWeight','bold','Color',cols3(i,:));
+    scatter3(P2(1,i),P2(2,i),P2(3,i),400,cols3(i,:),'filled','MarkerEdgeColor','k','DisplayName',lbl2{i});
+    text(P2(1,i),P2(2,i),P2(3,i),['  ' lbl2{i}],'FontSize',12,'FontWeight','bold','Color',cols3(i,:));
 end
 legend('Location','best');
 title('Fig 5: P2 on head+cast — NAS / CHIN / R\_SHOULDER');
 xlabel('x (mm)'); ylabel('y (mm)'); zlabel('z (mm)');
 axis equal; grid on; view(3); lighting gouraud; camlight('headlight');
 
-%-- Fig 6: Stage 2 preview (head+cast -> head-only via shoulder+chin) ----
+%-- Fig 6: Stage 2 preview (head+cast -> head-only) ----------------------
 head2headcast_preview = spm_eeg_inv_rigidreg(P2_head, P2);
-hc2_tfm = hc2;
-hc2_tfm.vertices = (head2headcast_preview * ...
-    [hc2.vertices, ones(size(hc2.vertices,1),1)]')';
+hc2_tfm          = hc2;
+hc2_tfm.vertices = (head2headcast_preview * [hc2.vertices, ones(size(hc2.vertices,1),1)]')';
 hc2_tfm.vertices = hc2_tfm.vertices(:,1:3);
-P2_tfm = head2headcast_preview * [P2; ones(1,3)];
+P2_tfm           = head2headcast_preview * [P2; ones(1,3)];
 
-figure('Name','Fig 6: Stage 2 preview — head+cast onto head-only','NumberTitle','off','Color','w');
+figure('Name','Fig 6: Stage 2 preview','NumberTitle','off','Color','w');
 hold on;
 patch('Vertices',h2.vertices,'Faces',h2.faces,...
-    'FaceColor',[0.5 0.75 1],'EdgeColor','none','FaceAlpha',0.35,...
-    'DisplayName','Head-only scan');
+    'FaceColor',[0.5 0.75 1],'EdgeColor','none','FaceAlpha',0.35,'DisplayName','Head-only');
 patch('Vertices',hc2_tfm.vertices,'Faces',hc2_tfm.faces,...
-    'FaceColor',[1 0.55 0.1],'EdgeColor','none','FaceAlpha',0.35,...
-    'DisplayName','Head+Cast (transformed)');
+    'FaceColor',[1 0.55 0.1],'EdgeColor','none','FaceAlpha',0.35,'DisplayName','Head+Cast (transformed)');
 for i = 1:3
     scatter3(P2_head(1,i),P2_head(2,i),P2_head(3,i),400,'r','filled','HandleVisibility','off');
-    text(P2_head(1,i),P2_head(2,i),P2_head(3,i),['  ' lbl2{i} ' (target)'],...
-        'Color','r','FontWeight','bold','FontSize',11);
+    text(P2_head(1,i),P2_head(2,i),P2_head(3,i),['  ' lbl2{i} ' (target)'],'Color','r','FontWeight','bold','FontSize',11);
     scatter3(P2_tfm(1,i),P2_tfm(2,i),P2_tfm(3,i),400,'b','^','filled','HandleVisibility','off');
-    text(P2_tfm(1,i),P2_tfm(2,i),P2_tfm(3,i),['  ' lbl2{i} ' (cast)'],...
-        'Color','b','FontWeight','bold','FontSize',11);
+    text(P2_tfm(1,i),P2_tfm(2,i),P2_tfm(3,i),['  ' lbl2{i} ' (cast)'],'Color','b','FontWeight','bold','FontSize',11);
     plot3([P2_head(1,i) P2_tfm(1,i)],[P2_head(2,i) P2_tfm(2,i)],[P2_head(3,i) P2_tfm(3,i)],...
         'k-','LineWidth',2.5,'HandleVisibility','off');
 end
 legend('Location','best');
-title({'Fig 6: Stage 2 preview — Head+Cast (orange) onto Head-only (blue)',...
-       'Ears on cast should align with ears on head-only scan'});
+title({'Fig 6: Stage 2 — Head+Cast (orange) onto Head-only (blue)',...
+       'Ears on cast should align with ears on head-only'});
 xlabel('x (mm)'); ylabel('y (mm)'); zlabel('z (mm)');
 axis equal; grid on; view(3); lighting gouraud; camlight('headlight');
 
-fprintf('\n--- Stage 2 preview residuals (shoulder+chin bridge) ---\n');
+fprintf('\n--- Stage 2 residuals ---\n');
 for i = 1:3
-    r = P2_head(:,i) - P2_tfm(1:3,i);
-    fprintf('  %s: norm=%.1f mm\n', lbl2{i}, norm(r));
+    fprintf('  %s: %.1f mm\n', lbl2{i}, norm(P2_head(:,i) - P2_tfm(1:3,i)));
 end
 
 %% =========================================================================
-%  CONVERT MESHES TO .GII FOR spm_opm_opreg
-%  spm_opm_opreg internally calls gifti() so needs .gii files.
-%  We write them to a temp folder next to the first scan file.
-%  =========================================================================
+%  CONVERT FULL-RES MESHES TO .GII FOR spm_opm_opreg_MES
+%  (co-reg runs on full resolution — downsampled used only above)
+%% =========================================================================
 [scan_dir, ~, ~] = fileparts(char(headonly));
-headonly_gii   = fullfile(scan_dir, 'headonly_tmp.gii');
-withCast_gii   = fullfile(scan_dir, 'withCast_tmp.gii');
-helmetfile_gii = fullfile(scan_dir, 'helmet_tmp.gii');
+headonly_gii     = fullfile(scan_dir, 'headonly_tmp.gii');
+withCast_gii     = fullfile(scan_dir, 'withCast_tmp.gii');
+helmetfile_gii   = fullfile(scan_dir, 'helmet_tmp.gii');
 
 mesh_to_gii(h,   headonly_gii);
 mesh_to_gii(hc,  withCast_gii);
 mesh_to_gii(hel, helmetfile_gii);
 
-fprintf('Saved temporary .gii files to %s\n', scan_dir);
+fprintf('Saved temporary .gii files to: %s\n', scan_dir);
 
 %% =========================================================================
 %  CO-REGISTRATION
-%  =========================================================================
-S = [];
-S.D              = D;
-S.headfile       = headonly_gii;
-S.headcastfile   = withCast_gii;
-S.helmetfile     = helmetfile_gii;
-S.helmetref1     = P3;       % 3x3 mm:  FPz,T3,T4 on helmet STL
-S.headhelmetref1 = P4;       % 3x3:     FPz,T3,T4 on head+cast
-S.headref2       = P2_head;  % 3x3:     NAS,CHIN,R_SHOULDER on head-only
-S.headhelmetref2 = P2;       % 3x3:     NAS,CHIN,R_SHOULDER on head+cast
-S.fiducials      = P;        % 3x3:     NAS,LPA,RPA for MNI alignment
-S.debug          = 1;
+%% =========================================================================
+S                  = [];
+S.D                = D;
+S.headfile         = headonly_gii;
+S.headcastfile     = withCast_gii;
+S.helmetfile       = helmetfile_gii;
+S.helmetref1       = P3;       % FPz, T3, T4 on helmet STL
+S.headhelmetref1   = P4;       % FPz, T3, T4 on head+cast
+S.headref2         = P2_head;  % NAS, CHIN, R_SHOULDER on head-only
+S.headhelmetref2   = P2;       % NAS, CHIN, R_SHOULDER on head+cast
+S.fiducials        = P;        % NAS, LPA, RPA for MNI alignment
+S.debug            = 1;
 
 cD = spm_opm_opreg_MES(S);
 
-
 %% =========================================================================
 %  LOCAL FUNCTIONS
-%  =========================================================================
+%% =========================================================================
 
 function verify_landmarks(P, labels, expected_range, unit_label)
-    fprintf('\n--- Landmark verification: %s (%s) ---\n', ...
-        strjoin(labels, '/'), unit_label);
-    N = size(P, 2);
+    fprintf('\n--- Landmark verification: %s (%s) ---\n', strjoin(labels, '/'), unit_label);
     all_ok = true;
-    for i = 1:N
-        for j = i+1:N
-            d = norm(P(:,i) - P(:,j));
+    for i = 1:size(P,2)
+        for j = i+1:size(P,2)
+            d  = norm(P(:,i) - P(:,j));
             ok = d >= expected_range(1) && d <= expected_range(2);
             if ok, status = 'OK';
-            else,  status = '*** OUT OF RANGE - re-pick'; all_ok = false;
+            else,  status = '*** OUT OF RANGE — re-pick'; all_ok = false;
             end
-            scale = 1000 * strcmp(unit_label,'metres') + 1 * strcmp(unit_label,'mm');
-            fprintf('  %s-%s: %.2f %s  %s\n', ...
-                labels{i}, labels{j}, d, unit_label, d * scale, status);
+            fprintf('  %s-%s: %.1f %s  [%s]\n', labels{i}, labels{j}, d, unit_label, status);
         end
     end
     if ~all_ok
@@ -300,26 +281,21 @@ function verify_landmarks(P, labels, expected_range, unit_label)
 end
 
 function sf = determine_scan_units(fids_a, fids_b)
-    % Estimate scale factor between two sets of 3 fiducials via triangle area.
-    % Adapted from cr_register_torso > determine_body_scan_units.
     vec_a  = fids_a(:,[1 2]) - fids_a(:,3);
     vec_b  = fids_b(:,[1 2]) - fids_b(:,3);
     area_a = norm(cross(vec_a(:,1), vec_a(:,2)));
     area_b = norm(cross(vec_b(:,1), vec_b(:,2)));
-    pow    = round(log10(sqrt(area_a / area_b)));
-    sf     = 10^pow;
+    sf     = 10^round(log10(sqrt(area_a / area_b)));
 end
 
 function mesh_to_gii(mesh, outpath)
-    % Write a vertices/faces struct to a .gii file that gifti() can read.
-    g = gifti();
+    g          = gifti();
     g.vertices = single(mesh.vertices);
     g.faces    = uint32(mesh.faces);
     save(g, char(outpath));
 end
 
 function mesh = load_mesh(filepath)
-    % Load a mesh from .stl, .obj, or .gii — returns struct with .vertices/.faces
     [~, ~, ext] = fileparts(filepath);
     if strcmpi(ext, '.stl')
         raw = stlread(filepath);
@@ -336,7 +312,7 @@ function mesh = load_mesh(filepath)
             error('Unsupported STL struct format: %s', filepath);
         end
     elseif strcmpi(ext, '.obj') || strcmpi(ext, '.gii')
-        raw = gifti(filepath);
+        raw           = gifti(filepath);
         mesh.vertices = raw.vertices;
         mesh.faces    = raw.faces;
     else
