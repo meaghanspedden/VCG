@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# MATLAB autosave
+*.asv
+
+# PyInstaller build output
+build/
+dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
