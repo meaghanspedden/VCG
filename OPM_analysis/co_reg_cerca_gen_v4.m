@@ -18,16 +18,16 @@ spm('defaults','EEG')
 %% -------------------------------------------------------------------------
 %  File paths
 %% -------------------------------------------------------------------------
-withCast   = "C:\Users\mspedden\OP00276_aux\withhelmetOP00276.stl";
-headonly   = "C:\Users\mspedden\OP00276_aux\withouthelmetOP00276.stl";
+withCast   = "C:\BSL_data\OP00277_aux\withhelmet.stl";
+headonly   = "C:\BSL_data\OP00277_aux\withouthelmet.stl";
 helmetfile = 'C:\Users\mspedden\Documents\VCG\Adult_L_purple_lite.stl';
-ds_file    = 'C:\Users\mspedden\Sub-OP00276\meshes_downsampled.mat';
+ds_file    = 'C:\BSL_data\OP00277_aux\meshes_downsampled.mat';
 ds_factor  = 0.5;
 
 %% -------------------------------------------------------------------------
 %  Load OPM data
 %% -------------------------------------------------------------------------
-D = spm_eeg_load('C:\Users\mspedden\Documents\VCG\sub-OP00228\epochedERDmfffsub-OP00228_task-verb_run-001.mat');
+D = spm_eeg_load('C:\BSL_data\Sub-OP00277\ses-001\meg\sign-run-001_01-07-2026_12-40-38\sign-run-001_array1.lvm');
 
 %% -------------------------------------------------------------------------
 %  Load full-res meshes (needed for final .gii export only)
