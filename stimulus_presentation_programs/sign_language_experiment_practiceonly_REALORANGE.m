@@ -1,75 +1,83 @@
-function word_experiment_practiceonly()
-% WORD_EXPERIMENT_PRACTICEONLY
-% Practice-only version of word_experiment_withpractice_v4.
-% Runs ONLY the three practice stages (REAL_BLOCK, PSEUDO_BLOCK, MIXED).
-% No main experiment trials are built or run.
+function sign_language_experiment_practiceonly_REALORANGE()
+% SIGN_LANGUAGE_EXPERIMENT_PRACTICEONLY_REALORANGE
+% PsychToolbox sign language video experiment for DEAF participants.
+% PRACTICE ONLY — no main experiment trials are run.
 %
 % PRACTICE:
-%   A) REAL/BLUE instructions + blocked real practice trials (SPACE between)
-%   B) PSEUDO/ORANGE instructions + blocked pseudo practice trials (SPACE between)
-%   C) MIXED practice: remaining real + pseudo (randomized, no SPACE)
+%  
 %
-% All other behaviour (timing, audio, triggers, etc.) is identical to v4.
+% TRIGGER CODES (parallel port):
+%   1 = background onset (baseline window start)
+%   2 = first video frame (stimulus onset)
+%   4 = question mark onset (response cue)
+%
+% ESCAPE exits at any time.
 
 
 %% ===== LAB CONFIG =====
 labMode = false;
-
-screenNumber  = 1 * labMode + 2 * ~labMode;
+screenNumber  = 1 * labMode + 2 * ~labMode;   % 1 = projector, 2 = dev monitor
 skipSyncTests = 2;
 
 
 %% ===== EXPERIMENT PARAMETERS =====
 
-realVideoFolder      = 'C:\Users\mspedden\Videos\final\Real words\stimuli_blue\h264';
-realPracticeFolder   = 'C:\Users\mspedden\Videos\final\Real words\stimuli_blue\h264\practice';
-pseudoVideoFolder    = 'C:\Users\mspedden\Videos\final\Pseudowords\final_orange';
-pseudoPracticeFolder = 'C:\Users\mspedden\Videos\final\Pseudowords\final_orange\practice';
+% Paths
+realVideoFolder      = 'C:\Users\mspedden\Videos\final\Real signs\stimuli_orange';
+realPracticeFolder   = 'C:\Users\mspedden\Videos\final\Real signs\stimuli_orange\practice';
+pseudoVideoFolder    = 'C:\Users\mspedden\Videos\final\Pseudosigns\pseudosigns_stimuli_blue';
+pseudoPracticeFolder = 'C:\Users\mspedden\Videos\final\Pseudosigns\pseudosigns_stimuli_blue\practice';
 dataFolder           = 'C:\Users\mspedden\Documents\experiment_data';
 
-realBgColor   = [170, 190, 222] / 255;
-pseudoBgColor = [204, 119, 82]  / 255;
+% Background colours (normalised 0-1 for PTB)
+realBgColor   = [204, 119, 82]  / 255;    % orange
+pseudoBgColor = [170, 190, 222] / 255;    % periwinkle
 neutralGray   = [180, 180, 180];
 textGray      = [40, 40, 40];
 
+% Practice structure
+nPracticePerCond        = 20;
 nBlockedPracticePerCond = 5;
-nMixedPracticePerCond   = 15;
+nMixedPracticePerCond   = nPracticePerCond - nBlockedPracticePerCond;
 
-practice_preVideoDuration = 1.0;
+% PRACTICE timing
+practice_preVideoDuration = 1;
 practice_questionDuration = 1.9;
 practice_responseDuration = 0.1;
 
-questionText        = '?';
-questionTextSize    = 400;
-questionTextColor   = textGray;
+% Text settings
+questionText      = '?';
+questionTextSize  = 400;
+questionTextColor = textGray;
 instructionTextSize = 62;
 instructionWrapAt   = 62;
 instructionVSpacing = 1.25;
-itiTextSize         = 44;
+itiTextSize = 44;
 
-nrchannels = 1;
-
-portAddress     = hex2dec('3FF8');
-triggerDuration = 0.005;
+% Parallel port
+portAddress      = hex2dec('3FF8');
+triggerDuration  = 0.005;
 
 TRIG_BG       = 1;
 TRIG_VIDEO    = 2;
 TRIG_QUESTION = 4;
 
 % Minimal on-screen prompts — experimenter delivers full instructions live
+
 realInstructionText1 = [ ...
-    'Light blue background: real words.\n\n' ...
+    'Orange background: real signs.\n\n' ...
     'Press SPACE to begin.' ];
 
 pseudoInstructionText1 = [ ...
-    'Orange background: made-up words.\n\n' ...
+    'Light blue background: movements to mirror.\n\n' ...
     'Press SPACE to begin.' ];
 
 mixedPracticeText = [ ...
     'Mixed practice\n\n' ...
     'Press SPACE to begin.' ];
 
-practiceCompleteText = 'Practice complete.\n\n';
+practiceCompleteText = [ ...
+    'Practice complete.\n\n'];
 
 
 %% ===== SETUP =====
@@ -89,7 +97,7 @@ try
     participantID = answer{1};
     sessionNum    = answer{2};
     timestamp     = datestr(now, 'yyyy-mm-dd_HH-MM-SS');
-    dataFilename  = fullfile(dataFolder, sprintf('sub-%s_ses-%s_%s_words_PRACTICE.csv', ...
+    dataFilename  = fullfile(dataFolder, sprintf('sub-%s_ses-%s_%s_practice.csv', ...
         participantID, sessionNum, timestamp));
 
     % Gather video files
@@ -102,6 +110,7 @@ try
         pseudoPracticeVids = [];
     end
 
+    % Main video folders used only as fallback if practice folder is short
     realVideos   = dir(fullfile(realVideoFolder, '*.mp4'));
     pseudoVideos = [];
     hasPseudo    = false;
@@ -118,7 +127,7 @@ try
     end
 
     if isempty(realVideos) && isempty(realPracticeVids)
-        error('No real videos found in practice or main folder.');
+        error('No REAL videos found in: %s or %s', realVideoFolder, realPracticeFolder);
     end
 
     fprintf('Real: %d practice vids | Pseudo: %d practice vids\n', ...
@@ -139,8 +148,9 @@ try
         pseudoPrIdx = [];
     end
 
-    realMainIdx   = randperm(max(length(realVideos), 1));
-    pseudoMainIdx = randperm(max(length(pseudoVideos), 1));
+    % Fallback pointers into main video folders (if practice folder is short)
+    realMainIdx   = randperm(length(realVideos));
+    pseudoMainIdx = randperm(length(pseudoVideos));
     realMainPtr   = 1;
     pseudoMainPtr = 1;
 
@@ -219,16 +229,17 @@ try
     end
 
     nTrials = length(trials);
-    fprintf('Practice-only mode: %d trials total\n', nTrials);
+    fprintf('Total practice trials: %d\n', nTrials);
 
     %% ===== PSYCHTOOLBOX SETUP =====
-    InitializePsychSound(1);
+
     PsychDefaultSetup(2);
 
-    Screen('Preference', 'SkipSyncTests',       skipSyncTests);
-    Screen('Preference', 'VisualDebugLevel',     0);
+    Screen('Preference', 'SkipSyncTests',        skipSyncTests);
+    Screen('Preference', 'VisualDebugLevel',     1);
     Screen('Preference', 'SuppressAllWarnings',  1);
-    Screen('Preference', 'Verbosity',            0);
+    Screen('Preference', 'TextEncodingLocale',   'UTF-8');
+    Screen('Preference', 'TextRenderer',         1);
 
     [window, windowRect] = Screen('OpenWindow', screenNumber, neutralGray); %#ok<ASGLU>
     Screen('TextFont',  window, 'Arial');
@@ -239,23 +250,7 @@ try
     fprintf('Screen %d: %dx%d @ %.2f Hz  (labMode=%d)\n', ...
         screenNumber, windowRect(3), windowRect(4), fps, labMode);
 
-    pahandle = [];
-    targetFs = 48000;
-    for tryFs = [48000, 44100, 22050]
-        try
-            pahandle = PsychPortAudio('Open', [], 1, 1, tryFs, nrchannels);
-            targetFs = tryFs;
-            fprintf('Audio opened at %d Hz\n', targetFs);
-            break;
-        catch audioErr
-            fprintf('Audio at %d Hz failed (%s), trying next...\n', tryFs, audioErr.message);
-        end
-    end
-    if isempty(pahandle)
-        error('Could not open audio at any sample rate (tried 48000, 44100, 22050).');
-    end
-    PsychPortAudio('Volume', pahandle, 1.0);
-
+    % Parallel port
     triggerOK = false;
     ioObj     = [];
     try
@@ -278,38 +273,38 @@ try
 
     %% ===== DATA LOGGING =====
     fid = fopen(dataFilename, 'w');
-    fprintf(fid, ['trial,trialType,practiceStage,condition,videoFile,audioFile,' ...
-        'bgPreStart,firstVideoFrame,audioStartTime,videoEnd,' ...
+    fprintf(fid, ['trial,trialType,practiceStage,condition,videoFile,' ...
+        'bgPreStart,firstVideoFrame,videoEnd,' ...
         'questionStart,questionEnd,responseStart,responseEnd\n']);
 
-    %% ===== RUN PRACTICE TRIALS =====
+    %% ===== RUN PRACTICE =====
     Screen('TextSize', window, questionTextSize);
     moviePtr = [];
 
     for trial = 1:nTrials
 
-        % Safety close from previous trial
+        % Safety close: clear any handle left from previous trial
         if ~isempty(moviePtr) && moviePtr > 0
             try, Screen('PlayMovie', moviePtr, 0); catch, end
             try, Screen('CloseMovie', moviePtr);  catch, end
             moviePtr = [];
         end
 
-        % --- Instruction screens ---
-        if strcmp(trials(trial).practiceStage, 'REAL_BLOCK') && trial == 1
-            showInstruction(realBgColor, realInstructionText1);
-        end
+       % --- Instruction screens ---
+if strcmp(trials(trial).practiceStage, 'REAL_BLOCK') && trial == 1
+    showInstruction(realBgColor, realInstructionText1);
+end
 
-        if hasPseudo && strcmp(trials(trial).practiceStage, 'PSEUDO_BLOCK') && trial > 1 ...
-                && strcmp(trials(trial-1).practiceStage, 'REAL_BLOCK')
-            showInstruction(pseudoBgColor, pseudoInstructionText1);
-        end
+if hasPseudo && strcmp(trials(trial).practiceStage, 'PSEUDO_BLOCK') && trial > 1 ...
+        && strcmp(trials(trial-1).practiceStage, 'REAL_BLOCK')
+    showInstruction(pseudoBgColor, pseudoInstructionText1);
+end
 
-        if hasPseudo && strcmp(trials(trial).practiceStage, 'MIXED') && trial > 1 ...
-                && strcmp(trials(trial-1).practiceStage, 'PSEUDO_BLOCK')
-            showInstruction(neutralGray, mixedPracticeText);
-        end
-
+if hasPseudo && strcmp(trials(trial).practiceStage, 'MIXED') && trial > 1 ...
+        && strcmp(trials(trial-1).practiceStage, 'PSEUDO_BLOCK')
+    showInstruction(neutralGray, mixedPracticeText);
+end
+        % --- Timing ---
         preVideoDuration = practice_preVideoDuration;
         questionDuration = practice_questionDuration;
         responseDuration = practice_responseDuration;
@@ -317,23 +312,6 @@ try
 
         fprintf('\n=== Trial %d/%d (%s) | %s | %s ===\n', ...
             trial, nTrials, trialType, trials(trial).practiceStage, trials(trial).condition);
-
-        %% Prepare audio
-        [audioFolder, audioBase, ~] = fileparts(trials(trial).videoFile);
-        audioFile = fullfile(audioFolder, [audioBase '.wav']);
-
-        PsychPortAudio('Stop', pahandle, 1);
-        haveAudio = false;
-
-        if exist(audioFile, 'file')
-            [y, fs] = audioread(audioFile);
-            if size(y,2) > 1, y = mean(y,2); end
-            if fs ~= targetFs, y = resample(y, targetFs, fs); end
-            PsychPortAudio('FillBuffer', pahandle, y');
-            haveAudio = true;
-        else
-            warning('Missing WAV: %s', audioFile);
-        end
 
         %% PHASE 1: Pre-video background + preload movie
         bgColor255 = trials(trial).bgColor * 255;
@@ -353,13 +331,11 @@ try
 
         waitWithEscapeUntil(bgPreStart + preVideoDuration);
 
-        %% PHASE 2: Play video (muted) + sync audio to first frame
-        Screen('PlayMovie', moviePtr, 1, 0, 0);
+        %% PHASE 2: Play video
+        Screen('PlayMovie', moviePtr, 1);
 
         frameCount     = 0;
         firstFrameTime = nan;
-        audioStartTime = nan;
-        audioStarted   = false;
         questionStart  = nan;
         videoEnd       = nan;
 
@@ -371,7 +347,6 @@ try
                     try, Screen('CloseMovie', moviePtr);  catch, end
                     moviePtr = [];
                 end
-                PsychPortAudio('Stop', pahandle, 1);
                 error('Experiment terminated by user (ESC).');
             end
 
@@ -394,11 +369,6 @@ try
             if frameCount == 0
                 firstFrameTime = vbl;
                 sendTrigger(TRIG_VIDEO);
-                if haveAudio && ~audioStarted
-                    PsychPortAudio('Start', pahandle, 1, firstFrameTime, 0);
-                    audioStartTime = firstFrameTime;
-                    audioStarted   = true;
-                end
                 fprintf('  [TIMING] First frame at %.3f (bg delay: %.1f ms)\n', ...
                     firstFrameTime, (firstFrameTime - bgPreStart)*1000);
             end
@@ -407,8 +377,7 @@ try
             Screen('Close', tex);
         end
 
-        PsychPortAudio('Stop', pahandle, 1);
-
+        % Explicit inline close
         if ~isempty(moviePtr) && moviePtr > 0
             try, Screen('PlayMovie', moviePtr, 0); catch, end
             try, Screen('CloseMovie', moviePtr);  catch, end
@@ -417,7 +386,7 @@ try
 
         fprintf('  [TIMING] Video end/question at %.3f (%d frames)\n', videoEnd, frameCount);
 
-        %% PHASE 3: Question duration
+        %% PHASE 3: Wait for question duration
         waitWithEscapeSeconds(questionDuration);
         questionEnd = GetSecs();
 
@@ -428,10 +397,10 @@ try
         responseEnd = GetSecs();
 
         %% Save trial data
-        fprintf(fid, '%d,%s,%s,%s,%s,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n', ...
+        fprintf(fid, '%d,%s,%s,%s,%s,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n', ...
             trial, trialType, trials(trial).practiceStage, trials(trial).condition, ...
-            trials(trial).videoFile, audioFile, ...
-            bgPreStart, firstFrameTime, audioStartTime, videoEnd, ...
+            trials(trial).videoFile, ...
+            bgPreStart, firstFrameTime, videoEnd, ...
             questionStart, questionEnd, responseStart, responseEnd);
 
         %% ITI
@@ -463,7 +432,6 @@ try
 
     %% ===== CLEANUP =====
     fclose(fid);
-    PsychPortAudio('Close', pahandle);
     Screen('FillRect', window, neutralGray);
     Screen('TextSize', window, 44);
     DrawFormattedText(window, practiceCompleteText, ...
@@ -474,7 +442,7 @@ try
     ShowCursor;
     fprintf('\n=== PRACTICE COMPLETE ===\n');
     fprintf('Data saved to: %s\n', dataFilename);
-    fprintf('Total practice trials: %d\n', nTrials);
+    fprintf('Total trials completed: %d/%d\n', trial, nTrials);
 
 catch ME
     if exist('moviePtr','var') && ~isempty(moviePtr) && moviePtr > 0
@@ -485,7 +453,6 @@ catch ME
     ShowCursor;
     fprintf('\n=== ERROR ===\n%s\n', ME.message);
     try, if exist('fid','var') && fid > 0, fclose(fid); end, catch, end
-    try, if exist('pahandle','var') && ~isempty(pahandle), PsychPortAudio('Close', pahandle); end, catch, end
     rethrow(ME);
 end
 
@@ -555,12 +522,12 @@ end
     end
 
     function out = pseudorandTrials(in, maxRun)
-        conditions  = {in.condition};
-        n           = length(in);
+        conditions = {in.condition};
+        n = length(in);
         maxAttempts = 10000;
         for attempt = 1:maxAttempts
-            idx   = randperm(n);
-            cond  = conditions(idx);
+            idx = randperm(n);
+            cond = conditions(idx);
             valid = true;
             for k = maxRun+1 : n
                 if all(strcmp(cond(k-maxRun:k), cond{k}))

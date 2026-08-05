@@ -49,15 +49,16 @@ badBin = meanTrialVar>thresh;
 nBad= sum(badBin);
 retain = find(~badBin);
 
-% Crop object
+% Mark outlier trials as bad and physically remove them
+% (spm_opm_selectTrials no longer exists in this SPM version; use the
+% standard badtrials-flag + spm_eeg_remove_bad_trials workflow instead)
 %--------------------------------------------------------------------------
-[a,b,c]= fileparts(fullfile(S.D));
-fname = fullfile(a,[S.prefix,b,c]);
-args=[];
-args.D=S.D;
-args.inds = retain;
-args.fname= fname;
-D = spm_opm_selectTrials(args);
+Dbad = badtrials(S.D, find(badBin), 1);
+
+args        = [];
+args.D      = Dbad;
+args.prefix = S.prefix;
+D = spm_eeg_remove_bad_trials(args);
 % summary Figure
 %--------------------------------------------------------------------------
 figure();
