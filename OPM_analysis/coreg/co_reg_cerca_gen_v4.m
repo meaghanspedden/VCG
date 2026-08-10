@@ -18,20 +18,43 @@ spm('defaults','EEG')
 %% -------------------------------------------------------------------------
 %  File paths
 %% -------------------------------------------------------------------------
-withCast   = "C:\BSL_data\OP00277_aux\withhelmet.stl";
-headonly   = "C:\BSL_data\OP00277_aux\withouthelmet.stl";
+subjID     = 'OP00290';
+data_root  = 'C:\BSL_data';
+aux_dir    = fullfile(data_root, [subjID '_aux']);
+meg_dir    = fullfile(data_root, ['Sub-' subjID], 'ses-001', 'meg');
+
+withCast   = resolve_mesh_file(aux_dir, 'withhelmet');
+headonly   = resolve_mesh_file(aux_dir, 'withouthelmet');
 helmetfile = 'C:\Users\mspedden\Documents\VCG\Adult_L_purple_lite.stl';
-ds_file    = 'C:\BSL_data\OP00277_aux\meshes_downsampled.mat';
-ds_factor  = 0.5;
+ds_file    = fullfile(aux_dir, 'meshes_downsampled.mat');
+
+% Scanner used for the head-only/head+cast optical scans — sets the
+% native-units-to-mm scale factor applied on load (helmetfile is a fixed
+% CAD STL and is never rescaled here).
+scanner = 'phone';   % 'Einscan' | 'ipad' | 'phone'
+
+% Downsampling target: rather than picking a per-scanner reducepatch
+% fraction (which gives wildly different absolute mesh complexity across
+% scanners), every scan is downsampled toward the SAME absolute vertex
+% count, so co-reg/picking always runs on comparable mesh density
+% regardless of scanner. Reference value = vertex count of an Einscan
+% head-only mesh at the old default reducepatch factor of 0.5 (subject
+% OP00277: 415166 -> 208130 vertices). Meshes already sparser than this
+% (typically ipad/phone) are left as-is — reducepatch can only reduce.
+ds_target_verts = 208130;
 
 %% -------------------------------------------------------------------------
-%  Load OPM data
+%  Load OPM data (any available run — coreg only needs one dataset's
+%  sensor layout, which is identical across runs for a fixed helmet/cast)
 %% -------------------------------------------------------------------------
-D = spm_eeg_load('C:\BSL_data\Sub-OP00277\ses-001\meg\sign-run-001_01-07-2026_12-40-38\sign-run-001_array1.lvm');
+lvm_file = find_run_lvm(meg_dir);
+D = spm_eeg_load(lvm_file);
 
 %% -------------------------------------------------------------------------
 %  Load full-res meshes (needed for final .gii export only)
 %% -------------------------------------------------------------------------
+% Loaded (and cached) in the scan's own native units — the scanner unit
+% scale is applied once, below, to both full-res and downsampled meshes.
 h   = load_mesh(headonly);
 hc  = load_mesh(withCast);
 hel = load_mesh(helmetfile);
@@ -45,25 +68,41 @@ if exist(ds_file, 'file')
     tmp  = load(ds_file);
     h2   = tmp.h2;
     hc2  = tmp.hc2;
+    hel2 = tmp.hel2;
     clear tmp;
 else
-    fprintf('Running reducepatch (first time only — saving for next run)...\n');
-    h2   = reducepatch(h,   ds_factor);
-    hc2  = reducepatch(hc,  ds_factor);
+    fprintf('Downsampling to target vertex count (first time only — saving for next run)...\n');
+    h2   = downsample_to_vertex_target(h,  ds_target_verts);
+    hc2  = downsample_to_vertex_target(hc, ds_target_verts);
     hel2 = hel;
     save(ds_file, 'h2', 'hc2', 'hel2');
     fprintf('Saved to: %s\n', ds_file);
 end
 
-fprintf('Mesh sizes — h2: %d faces  |  hc2: %d faces  |  hel2: %d faces\n', ...
-    size(h2.faces,1), size(hc2.faces,1), size(hel2.faces,1));
+fprintf('Mesh sizes — h2: %d verts / %d faces  |  hc2: %d verts / %d faces  |  hel2: %d verts / %d faces\n', ...
+    size(h2.vertices,1), size(h2.faces,1), size(hc2.vertices,1), size(hc2.faces,1), ...
+    size(hel2.vertices,1), size(hel2.faces,1));
+
+%% -------------------------------------------------------------------------
+%  Apply scanner unit scale to mm (head-only/head+cast only — cache and
+%  full-res meshes are stored/loaded in native scan units; helmetfile is
+%  a fixed CAD STL already in mm and is never rescaled here).
+%% -------------------------------------------------------------------------
+unit_scale  = scanner_unit_scale(scanner);
+h.vertices  = h.vertices  * unit_scale;
+hc.vertices = hc.vertices * unit_scale;
+h2.vertices  = h2.vertices  * unit_scale;
+hc2.vertices = hc2.vertices * unit_scale;
+fprintf('Scanner: %s -> scaling head-only/head+cast vertices by %g to reach mm\n', ...
+    scanner, unit_scale);
 
 %% =========================================================================
 %  LANDMARK PICKING  (all on downsampled meshes for speed)
 %
 %  CONVENTION: landmark matrices are 3xN (rows=xyz, cols=points).
 %  spm_mesh_select returns 3xN — do NOT transpose.
-%  Units: Einscan = mm throughout.
+%  Units: all meshes/landmarks are in mm after the `scanner` unit-scale
+%  step (Einscan is already mm; ipad/phone scans are in metres).
 %  =========================================================================
 
 %% 1. NAS, LPA, RPA on head-only  (MNI alignment only)
@@ -293,6 +332,76 @@ function mesh_to_gii(mesh, outpath)
     g.vertices = single(mesh.vertices);
     g.faces    = uint32(mesh.faces);
     save(g, char(outpath));
+end
+
+function filepath = resolve_mesh_file(dirpath, basename)
+% Prefer <basename>.stl; fall back to <basename>.obj if no .stl exists.
+    stl_path = fullfile(dirpath, [basename '.stl']);
+    obj_path = fullfile(dirpath, [basename '.obj']);
+    if exist(stl_path, 'file')
+        filepath = stl_path;
+    elseif exist(obj_path, 'file')
+        fprintf('No .stl for "%s" — using .obj instead:\n  %s\n', basename, obj_path);
+        filepath = obj_path;
+    else
+        error('resolve_mesh_file: neither %s nor %s exists', stl_path, obj_path);
+    end
+end
+
+function mesh_out = downsample_to_vertex_target(mesh_in, target_verts)
+% Downsample toward an absolute vertex count (not a fraction), so meshes
+% from different scanners end up at comparable complexity. Leaves the
+% mesh untouched if it's already at or below target — reducepatch can
+% only reduce, and a sparser-than-target scan (common for ipad/phone)
+% shouldn't be touched.
+    n_verts = size(mesh_in.vertices, 1);
+    if n_verts <= target_verts
+        fprintf('  Mesh already at/below target (%d <= %d verts) — leaving as-is.\n', ...
+            n_verts, target_verts);
+        mesh_out = mesh_in;
+        return
+    end
+    % reducepatch's r>=1 mode targets a face count, not a vertex count.
+    % For a near-manifold triangulated surface faces ~= 2*vertices, so
+    % scale the target accordingly (approximate — reducepatch itself only
+    % approximates the requested count).
+    target_faces = round(target_verts * 2);
+    mesh_out     = reducepatch(mesh_in, target_faces);
+    fprintf('  Downsampled %d -> %d verts (target %d)\n', ...
+        n_verts, size(mesh_out.vertices,1), target_verts);
+end
+
+function scale = scanner_unit_scale(scanner)
+% Multiplier to bring a head-scan STL's native vertex units to mm.
+    switch lower(scanner)
+        case 'einscan'
+            scale = 1;       % already mm
+        case {'ipad', 'phone'}
+            scale = 1000;    % ARKit/LiDAR meshes are in metres
+        otherwise
+            error('scanner_unit_scale: unknown scanner "%s"', scanner);
+    end
+end
+
+function lvm_file = find_run_lvm(meg_dir)
+% Find the first available sign-run-* dataset for a subject and return
+% the path to its array1.lvm file.
+    runs = dir(fullfile(meg_dir, 'sign-run-*'));
+    runs = runs([runs.isdir]);
+    if isempty(runs)
+        error('find_run_lvm: no sign-run-* folders found in %s', meg_dir);
+    end
+    [~, order] = sort({runs.name});
+    runs = runs(order);
+
+    run_dir = fullfile(runs(1).folder, runs(1).name);
+    lvm     = dir(fullfile(run_dir, '*_array1.lvm'));
+    if isempty(lvm)
+        error('find_run_lvm: no *_array1.lvm file found in %s', run_dir);
+    end
+
+    lvm_file = fullfile(run_dir, lvm(1).name);
+    fprintf('Using run: %s\n', run_dir);
 end
 
 function mesh = load_mesh(filepath)
