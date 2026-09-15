@@ -1,0 +1,121 @@
+name,final_model,original_choice,comment,rationale
+both_chest_claw_right_in,model1,model2,both work,freely swappable — swapped to model1 for balance
+both_chest_f_down_in,model1,model2,slightly different handshape....,freely swappable — swapped to model1 for balance
+both_chest_f_hold_towards,model1,model1,both work,freely swappable — kept original
+both_chest_f_right_in,model1,model2,again different handshape but both work,freely swappable — swapped to model1 for balance
+both_chin_5_hold_in,model1,model2,both work,freely swappable — swapped to model1 for balance
+both_chin_5_hold_out,model1,model1,bothw ork,freely swappable — kept original
+both_chin_5_hold_towards,model1,model2,both work,freely swappable — swapped to model1 for balance
+both_chin_5_up_out,model1,model1,both work even if both slightly different in location,freely swappable — kept original
+both_chin_b_left_in,model1,model1,both work,freely swappable — kept original
+both_chin_b_left_out,model1,model1,both work a bit different handshape,freely swappable — kept original
+both_chin_cf_left_towards,model1,model1,both work,freely swappable — kept original
+both_chin_cf_right_towards,model1,model1,again slight blinks m1  but wboth work,freely swappable — kept original
+both_chin_f_down_in,model1,model1,both blink,freely swappable — kept original
+both_chin_f_hold_in,model1,model1,movement seems odd.... abrupt but both work,freely swappable — kept original
+both_chin_f_hold_towards,model1,model1,both work,freely swappable — kept original
+both_chin_fist_left_in,model1,model1,both work,freely swappable — kept original
+both_chin_fist_right_in,model1,model1,both work,freely swappable — kept original
+both_chin_fist_right_out,model1,model1,both work,freely swappable — kept original
+both_chin_point_left_in,model1,model1,both work,freely swappable — kept original
+both_chin_point_up_in,model1,model1,both work,freely swappable — kept original
+both_chin_point_up_towards,model1,model1,both work even if m1 blinks,freely swappable — kept original
+both_front_claw_right_in,model1,model1,maybe a bit inappropriate m1 blinks a bit but both work,freely swappable — kept original
+both_front_claw_up_in,model1,model1,both work,freely swappable — kept original
+both_shoulder_cf_down_in,model1,model1,both work,freely swappable — kept original
+both_shoulder_cf_hold_towards,model1,model1,both work,freely swappable — kept original
+both_shoulder_cf_left_in,model1,model1,m2 blinks,locked model1 — M2 blinks
+both_shoulder_cf_left_out,model1,model1,both work,freely swappable — kept original
+both_shoulder_cf_right_in,model1,model1,both work,freely swappable — kept original
+both_shoulder_cf_right_out,model1,model1,m2 blnks,locked model1 — M2 blinks
+both_shoulder_cf_up_out,model1,model1,both work,freely swappable — kept original
+both_shoulder_point_down_in,model1,model1,location/palm orientation a bit dfferent but both work,freely swappable — kept original
+both_shoulder_point_right_in,model1,model1,pal orientation different but both work,freely swappable — kept original
+r_chest_b_left_in,model1,model1,both work,freely swappable — kept original
+r_chest_cf_right_in,model1,model1,both work,freely swappable — kept original
+r_chest_cf_up_in,model1,model1,both work,freely swappable — kept original
+r_chest_point_left_in,model1,model1,both work,freely swappable — kept original
+r_chin_b_left_out,model1,model1,both work,freely swappable — kept original
+r_chin_cf_left_in,model1,model1,both work,freely swappable — kept original
+r_chin_cf_up_in,model1,model1,bothw ork,freely swappable — kept original
+r_chin_cf_up_towards,model1,model1,both work,freely swappable — kept original
+r_chin_claw_hold_out,model1,model1,both work m2 blinks,freely swappable — kept original
+r_front_5_up_out,model1,model1,both work,freely swappable — kept original
+r_front_fist_right_in,model1,model1,both work,freely swappable — kept original
+r_shoulder_5_down_in,model1,model1,both work,freely swappable — kept original
+r_shoulder_5_down_out,model1,model1,both work,freely swappable — kept original
+r_shoulder_5_left_in,model1,model1,both work,freely swappable — kept original
+r_shoulder_5_left_out,model1,model1,both work,freely swappable — kept original
+r_shoulder_cf_down_in,model1,model1,both work,freely swappable — kept original
+r_shoulder_cf_hold_towards,model1,model1,both work,freely swappable — kept original
+r_shoulder_cf_right_out,model1,model1,both work,freely swappable — kept original
+r_shoulder_cf_up_in,model1,model1,both blink both work,freely swappable — kept original
+r_shoulder_cf_up_out,model1,model1,both work,freely swappable — kept original
+r_shoulder_claw_left_in,model1,model1,both work,freely swappable — kept original
+r_shoulder_claw_left_out,model1,model1,both work,freely swappable — kept original
+r_shoulder_claw_left_towards,model1,model1,both work,freely swappable — kept original
+r_shoulder_f_down_in,model1,model1,both work,freely swappable — kept original
+r_shoulder_f_down_out,model1,model1,both work m1 slightly blinky and m2 a bit shoulder movy,freely swappable — kept original
+r_shoulder_f_hold_in,model1,model1,both work,freely swappable — kept original
+r_shoulder_f_up_in,model1,model1,m2 blinks,locked model1 — M2 blinks
+both_chest_claw_left_in,model2,model1,both work,freely swappable — swapped to model2 for balance (60/60 -> 59/61)
+both_chin_5_right_in,model2,model2,both different palm orientation,freely swappable — kept original
+both_chin_b_left_towards,model2,model2,both work,freely swappable — kept original
+both_chin_cf_down_towards,model2,model2,both work tho m2 handshape are clearer,freely swappable — kept original
+both_chin_cf_hold_in,model2,model2,both work (m1 blinks),freely swappable — kept original
+both_chin_cf_hold_towards,model2,model2,m1 blinks but both work,freely swappable — kept original
+both_chin_cf_left_in,model2,model2,slightly different in location....,freely swappable — kept original
+both_chin_cf_out_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_chin_cf_right_in,model2,model2,m1 again slighly blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_chin_cf_up_in,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_chin_cf_up_towards,model2,model2,m1 blinks again but both work,freely swappable — kept original
+both_chin_claw_hold_out,model2,model2,both work,freely swappable — kept original
+both_chin_f_down_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_chin_f_left_in,model2,model2,a bit different hs.... m2 clearer,locked model2 — M1 blinks/bg issue/M2 clearer
+both_chin_f_up_in,model2,model2,m1 bg colour seems off....,locked model2 — M1 blinks/bg issue/M2 clearer
+both_chin_fist_left_out,model2,model2,both work,freely swappable — kept original
+both_chin_fist_left_towards,model2,model2,different handshape but both work,freely swappable — kept original
+both_chin_fist_right_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_chin_point_hold_in,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_chin_point_hold_towards,model2,model2,palm orientation different and m1 blinks,freely swappable — kept original
+both_chin_point_left_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_chin_point_right_in,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_chin_point_right_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_front_f_hold_in,model2,model2,palm orientation different.... m1 blinks,freely swappable — kept original
+both_front_f_up_in,model2,model2,again m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_shoulder_cf_right_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_shoulder_cf_up_in,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_shoulder_cf_up_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+both_shoulder_point_left_in,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_chest_5_left_in,model2,model2,bothw ork,freely swappable — kept original
+r_chest_5_left_out,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_chest_cf_left_in,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_chest_cf_out_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_chest_cf_right_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_chest_claw_right_in,model2,model2,different handshapes but both work,freely swappable — kept original
+r_chin_5_right_out,model2,model2,m1 eye slightly blinky,locked model2 — M1 blinks/bg issue/M2 clearer
+r_chin_b_left_in,model2,model2,m1 blinnks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_chin_b_left_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_chin_cf_left_towards,model2,model2,m1 slightly blihnky,locked model2 — M1 blinks/bg issue/M2 clearer
+r_chin_cf_right_in,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_chin_cf_right_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_chin_fist_left_out,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_front_5_left_out,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_front_5_up_in,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_front_5_up_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_front_f_up_in,model2,model2,m1 slightly blnky,locked model2 — M1 blinks/bg issue/M2 clearer
+r_front_f_up_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_front_fist_right_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_shoulder_b_up_in,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_shoulder_cf_left_in,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_shoulder_cf_out_in,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_shoulder_cf_right_in,model2,model2,m1 slightly blinky but both work,freely swappable — kept original
+r_shoulder_cf_right_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_shoulder_cf_up_towards,model2,model2,m1 slightly blinky but fine,locked model2 — M1 blinks/bg issue/M2 clearer
+r_shoulder_claw_down_in,model2,model2,m1 slightly blinky,locked model2 — M1 blinks/bg issue/M2 clearer
+r_shoulder_claw_right_out,model2,model2,both work,freely swappable — kept original
+r_shoulder_claw_right_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_shoulder_f_hold_out,model2,model2,m1 slightly blinky,locked model2 — M1 blinks/bg issue/M2 clearer
+r_shoulder_f_up_out,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
+r_shoulder_f_up_towards,model2,model2,both work,freely swappable — kept original
+r_shoulder_fist_right_towards,model2,model2,m1 blinks,locked model2 — M1 blinks/bg issue/M2 clearer
